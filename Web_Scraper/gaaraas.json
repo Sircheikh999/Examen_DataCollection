@@ -1,0 +1,79 @@
+{
+  "_id": "gaaraas",
+  "startUrl": [
+    "https://www.gaaraas.com/fr/users/dakar-auto?page=[1-13]"
+  ],
+  "selectors": [
+    {
+      "id": "container_links",
+      "linkType": "linkFromHref",
+      "multiple": true,
+      "parentSelectors": [
+        "_root"
+      ],
+      "selector": "a.common-ad-card",
+      "type": "SelectorLink",
+      "version": 2
+    },
+    {
+      "id": "marque_modele",
+      "multipleType": "singleColumn",
+      "parentSelectors": [
+        "container_links"
+      ],
+      "selector": ".ad-title-block h2",
+      "type": "SelectorText",
+      "version": 2
+    },
+    {
+      "id": "annee",
+      "multipleType": "singleColumn",
+      "parentSelectors": [
+        "container_links"
+      ],
+      "selector": "div.prop:nth-of-type(4) span:nth-of-type(2)",
+      "type": "SelectorText",
+      "version": 2
+    },
+    {
+      "id": "prix",
+      "multipleType": "singleColumn",
+      "parentSelectors": [
+        "container_links"
+      ],
+      "selector": ".back-wrapper .ad-price span.price-wrap",
+      "type": "SelectorText",
+      "version": 2
+    },
+    {
+      "id": "kilometrage",
+      "multipleType": "singleColumn",
+      "parentSelectors": [
+        "container_links"
+      ],
+      "selector": "div.prop:nth-of-type(3) span:nth-of-type(2)",
+      "type": "SelectorText",
+      "version": 2
+    },
+    {
+      "id": "type_boite_de_vitesse",
+      "multipleType": "singleColumn",
+      "parentSelectors": [
+        "container_links"
+      ],
+      "selector": "div.prop:nth-of-type(2) span:nth-of-type(2)",
+      "type": "SelectorText",
+      "version": 2
+    },
+    {
+      "id": "region_de_vente",
+      "multipleType": "singleColumn",
+      "parentSelectors": [
+        "container_links"
+      ],
+      "selector": ".ad-title a span",
+      "type": "SelectorText",
+      "version": 2
+    }
+  ]
+}

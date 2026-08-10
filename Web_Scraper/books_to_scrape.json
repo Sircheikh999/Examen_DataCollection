@@ -1,0 +1,106 @@
+{
+  "_id": "books_to_scrape",
+  "startUrl": [
+    "https://books.toscrape.com/catalogue/page-[1-50].html"
+  ],
+  "selectors": [
+    {
+      "id": "container_links",
+      "linkType": "linkFromHref",
+      "multiple": true,
+      "parentSelectors": [
+        "_root"
+      ],
+      "selector": "article.product_pod h3 a",
+      "type": "SelectorLink"
+    },
+    {
+      "id": "title",
+      "multiple": false,
+      "multipleType": "singleColumn",
+      "parentSelectors": [
+        "container_links"
+      ],
+      "regex": "",
+      "selector": "div.product_main h1",
+      "type": "SelectorText"
+    },
+    {
+      "id": "price",
+      "multiple": false,
+      "multipleType": "singleColumn",
+      "parentSelectors": [
+        "container_links"
+      ],
+      "regex": "",
+      "selector": "div.product_main p.price_color",
+      "type": "SelectorText"
+    },
+    {
+      "id": "availability",
+      "multiple": false,
+      "multipleType": "singleColumn",
+      "parentSelectors": [
+        "container_links"
+      ],
+      "regex": "",
+      "selector": "div.product_main p.instock.availability",
+      "type": "SelectorText"
+    },
+    {
+      "extractAttribute": "class",
+      "id": "star_rating",
+      "multiple": false,
+      "multipleType": "singleColumn",
+      "parentSelectors": [
+        "container_links"
+      ],
+      "selector": "div.product_main p.star-rating",
+      "type": "SelectorElementAttribute"
+    },
+    {
+      "id": "reviews",
+      "multiple": false,
+      "multipleType": "singleColumn",
+      "parentSelectors": [
+        "container_links"
+      ],
+      "regex": "",
+      "selector": "table.table-striped tr:nth-child(7) td",
+      "type": "SelectorText"
+    },
+    {
+      "id": "description",
+      "multiple": false,
+      "multipleType": "singleColumn",
+      "parentSelectors": [
+        "container_links"
+      ],
+      "regex": "",
+      "selector": "#product_description + p",
+      "type": "SelectorText"
+    },
+    {
+      "id": "product_type",
+      "multiple": false,
+      "multipleType": "singleColumn",
+      "parentSelectors": [
+        "container_links"
+      ],
+      "regex": "",
+      "selector": "ul.breadcrumb li:nth-child(3) a",
+      "type": "SelectorText"
+    },
+    {
+      "id": "tax",
+      "multiple": false,
+      "multipleType": "singleColumn",
+      "parentSelectors": [
+        "container_links"
+      ],
+      "regex": "",
+      "selector": "table.table-striped tr:nth-child(5) td",
+      "type": "SelectorText"
+    }
+  ]
+}
