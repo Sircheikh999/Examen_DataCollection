@@ -1,4 +1,3 @@
-```python
 # ============================================================
 # APPLICATION STREAMLIT - EXAMEN DATA COLLECTION
 # ============================================================
@@ -1398,4 +1397,3 @@ st.sidebar.caption(
 st.sidebar.caption(
     "Streamlit • Selenium • Pandas • SQLite"
 )
-```
