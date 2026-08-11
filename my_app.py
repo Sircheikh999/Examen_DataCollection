@@ -1,16 +1,11 @@
 import re
 import sqlite3
 from pathlib import Path
-
 import pandas as pd
 import streamlit as st
 
-
-# ============================================================
 # CONFIGURATION
-# ============================================================
 
-st.set_page_config(
     page_title="Data Collection - Examen",
     page_icon="📊",
     layout="wide",
@@ -23,10 +18,7 @@ FORM_DIR = BASE_DIR / "Formulaire"
 
 DB_PATH = BASE_DIR / "data_collection.db"
 
-
-# ============================================================
 # DATABASE SQL - SQLite
-# ============================================================
 
 def get_connection():
     return sqlite3.connect(DB_PATH)
@@ -49,13 +41,10 @@ def get_sql_tables():
         ).fetchall()
     return [row[0] for row in rows]
 
-
-# ============================================================
 # FICHIERS
-# ============================================================
 
 BOOKS_CSV = WEB_SCRAPER_DIR / "Source_1_Books_to_Scrape.csv"
-GAARAAS_CSV = WEB_SCRAPER_DIR / "Source_2_Gaaraas).csv"
+GAARAAS_CSV = WEB_SCRAPER_DIR / "Source_2_Gaaraas.csv"
 
 BOOKS_NOTEBOOK = COLAB_DIR / "books_to_scrape(Selenium).ipynb"
 GAARAAS_NOTEBOOK = COLAB_DIR / "gaaraas(Selenium).ipynb"
@@ -77,10 +66,7 @@ def read_csv(path: Path):
 
     return None
 
-
-# ============================================================
 # FORMULAIRES
-# ============================================================
 
 def extract_urls_from_excel(path: Path):
     """
@@ -128,10 +114,7 @@ def show_form_button(label, url, key):
     """Bouton qui ouvre directement le formulaire dans le navigateur."""
     st.link_button(label, url, use_container_width=True)
 
-
-# ============================================================
 # SELENIUM
-# ============================================================
 
 def create_driver():
     """Crée un Chrome/Chromium Selenium headless compatible Cloud."""
@@ -164,10 +147,7 @@ def create_driver():
 
     return webdriver.Chrome(options=options)
 
-
-# ============================================================
 # SELENIUM - BOOKS TO SCRAPE
-# ============================================================
 
 def scrape_books(start_page=1, end_page=50):
     """
@@ -987,48 +967,26 @@ elif menu == "Formulaires d'évaluation":
     st.title("📝 Formulaires d'évaluation")
 
     st.write(
-        "Les deux formulaires sont accessibles directement "
-        "depuis cette page."
+        "Les deux formulaires d'évaluation sont accessibles "
+        "directement depuis l'application."
     )
-
-    google_urls = extract_urls_from_excel(GOOGLE_FORM_FILE)
-    kobo_urls = extract_urls_from_excel(KOBO_FORM_FILE)
 
     st.subheader("📋 Google Forms")
 
-    if google_urls:
-        for index, url in enumerate(google_urls, start=1):
-            show_form_button(
-                f"📝 Ouvrir Google Forms {index}",
-                url,
-                f"google_form_{index}",
-            )
-    else:
-        st.warning(
-            "Aucun lien détecté dans "
-            "`formulaire_forms.xlsx`."
-        )
+    st.link_button(
+        "📝 Ouvrir le formulaire Google Forms",
+        "https://docs.google.com/forms/d/e/1FAIpQLSc7F8m3eBJkCqpOUa4pTQX0zyIov_4LWXRYOV3XKbmi0vJJoQ/viewform?usp=publish-editor",
+        use_container_width=True,
+    )
 
     st.divider()
 
     st.subheader("📋 KoboToolbox")
 
-    if kobo_urls:
-        for index, url in enumerate(kobo_urls, start=1):
-            show_form_button(
-                f"📝 Ouvrir KoboToolbox {index}",
-                url,
-                f"kobo_form_{index}",
-            )
-    else:
-        st.warning(
-            "Aucun lien détecté dans "
-            "`formulaire_kobotoolbox.xlsx`."
-        )
-
-    st.caption(
-        "Les URLs sont lues automatiquement depuis les fichiers "
-        "Excel du dossier Formulaire."
+    st.link_button(
+        "📝 Ouvrir le formulaire KoboToolbox",
+        "https://ee.kobotoolbox.org/i/1zbGqqaq",
+        use_container_width=True,
     )
 
 
