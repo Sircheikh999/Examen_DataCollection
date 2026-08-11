@@ -2,12 +2,13 @@ import streamlit as st
 import pandas as pd
 
 
-st.markdown("<h1 style='text-align: center; color: black;'>MY DATA APP</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: black;'>MY SCRAPING APP</h1>", unsafe_allow_html=True)
 
 st.markdown("""
 This app allows you to download scraped data on motocycles from expat-dakar 
 * **Python libraries:** base64, pandas, streamlit
-* **Data source:** [Expat-Dakar](https://www.expat-dakar.com/).
+* **Data source:** [Gaaraas](https://www.gaaraas.com/).
+* **Data source:** [Books-to-scrape](https://books.toscrape.com/).
 """)
 
 
@@ -33,11 +34,9 @@ st.markdown('''<style> .stButton>button {
 
           
 # Charger les données 
-load_(pd.read_csv('data/motos_scooters1.csv'), 'Motocycles data 1', '1')
-load_(pd.read_csv('data/motos_scooters2.csv'), 'Motocycles data 2', '2')
-load_(pd.read_csv('data/motos_scooters3.csv'), 'Motocycles data 3', '3')
-load_(pd.read_csv('data/motos_scooters4.csv'), 'Motocycles data 4', '4')
-load_(pd.read_csv('data/motos_scooters5.csv'), 'Motocycles data 5', '5')
+load_(pd.read_csv('Web_Scraper/Source_1_Books_to_Scrape.csv'), 'Books to scrape data', '1')
+load_(pd.read_csv('Web_Scraper/Source_2_Gaaraas.csv'), 'Gaaraas', '2')
+
 
 
 
