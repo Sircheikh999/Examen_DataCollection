@@ -5,10 +5,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-
-# ============================================================
 # CONFIGURATION
-# ============================================================
 
 st.set_page_config(
     page_title="Data Collection - Examen",
@@ -37,10 +34,7 @@ GOOGLE_FORM_URL = (
 )
 KOBO_FORM_URL = "https://ee.kobotoolbox.org/i/1zbGqqaq"
 
-
-# ============================================================
 # BASE SQL
-# ============================================================
 
 def get_connection():
     return sqlite3.connect(DB_PATH)
@@ -68,10 +62,7 @@ def get_sql_tables():
 
     return [row[0] for row in rows]
 
-
-# ============================================================
 # LECTURE CSV
-# ============================================================
 
 def read_csv_file(path):
     if not path.exists():
@@ -89,10 +80,7 @@ def read_csv_file(path):
 
     return None
 
-
-# ============================================================
 # SELENIUM
-# ============================================================
 
 def create_driver():
     from selenium import webdriver
@@ -119,10 +107,7 @@ def create_driver():
 
     return webdriver.Chrome(options=options)
 
-
-# ============================================================
 # SELENIUM - BOOKS TO SCRAPE
-# ============================================================
 
 def scrape_books(start_page=1, end_page=50):
 
@@ -238,10 +223,7 @@ def scrape_books(start_page=1, end_page=50):
 
     return pd.DataFrame(records)
 
-
-# ============================================================
 # SELENIUM - GAARAAS
-# ============================================================
 
 def scrape_gaaraas(start_page=1, end_page=13):
 
@@ -342,10 +324,7 @@ def scrape_gaaraas(start_page=1, end_page=13):
 
     return pd.DataFrame(records)
 
-
-# ============================================================
 # NETTOYAGE
-# ============================================================
 
 def clean_books(df):
 
@@ -450,10 +429,7 @@ if "books_selenium" not in st.session_state:
 if "gaaraas_selenium" not in st.session_state:
     st.session_state.gaaraas_selenium = None
 
-
-# ============================================================
 # SIDEBAR
-# ============================================================
 
 st.sidebar.title("📊 Data Collection")
 
@@ -472,10 +448,7 @@ menu = st.sidebar.radio(
 st.sidebar.markdown("---")
 st.sidebar.caption("Projet Examen Data Collection")
 
-
-# ============================================================
 # ACCUEIL
-# ============================================================
 
 if menu == "Accueil":
 
@@ -523,10 +496,7 @@ if menu == "Accueil":
             2
         )
 
-
-# ============================================================
 # SCRAPING SELENIUM
-# ============================================================
 
 elif menu == "Scraping Selenium":
 
@@ -539,9 +509,7 @@ elif menu == "Scraping Selenium":
         ]
     )
 
-    # --------------------------------------------------------
     # BOOKS
-    # --------------------------------------------------------
 
     with tab_books:
 
@@ -639,9 +607,7 @@ elif menu == "Scraping Selenium":
                 use_container_width=True
             )
 
-    # --------------------------------------------------------
     # GAARAAS
-    # --------------------------------------------------------
 
     with tab_gaaraas:
 
@@ -739,10 +705,7 @@ elif menu == "Scraping Selenium":
                 use_container_width=True
             )
 
-
-# ============================================================
 # DONNEES WEB SCRAPER
-# ============================================================
 
 elif menu == "Données Web Scraper":
 
@@ -828,10 +791,7 @@ elif menu == "Données Web Scraper":
                 "webscraper_gaaraas"
             )
 
-
-# ============================================================
 # DASHBOARD
-# ============================================================
 
 elif menu == "Dashboard":
 
@@ -849,9 +809,7 @@ elif menu == "Dashboard":
             "Lancez le scraping dans la section Selenium."
         )
 
-    # --------------------------------------------------------
     # BOOKS
-    # --------------------------------------------------------
 
     if books is not None:
 
@@ -970,9 +928,7 @@ elif menu == "Dashboard":
                 use_container_width=True
             )
 
-    # --------------------------------------------------------
     # GAARAAS
-    # --------------------------------------------------------
 
     if gaaraas is not None:
 
@@ -1098,10 +1054,7 @@ elif menu == "Dashboard":
                 use_container_width=True
             )
 
-
-# ============================================================
 # FORMULAIRES D'EVALUATION
-# ============================================================
 
 elif menu == "Formulaires d'évaluation":
 
@@ -1130,10 +1083,7 @@ elif menu == "Formulaires d'évaluation":
         use_container_width=True
     )
 
-
-# ============================================================
 # BASE SQL
-# ============================================================
 
 elif menu == "Base SQL":
 
