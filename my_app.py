@@ -1,1328 +1,502 @@
-```python
 import streamlit as st
 import pandas as pd
-import numpy as np
-import os
-import io
+import sqlite3
 import time
 from pathlib import Path
-
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 
-# ============================================================
+# =========================
 # CONFIGURATION
-# ============================================================
+# =========================
 
 st.set_page_config(
-    page_title="Data Collection Dashboard",
+    page_title="Data Collection",
     page_icon="💜",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
+BASE = Path(__file__).parent
+WEB = BASE / "Web_Scraper"
+DB = BASE / "data.db"
 
-# ============================================================
+
+# =========================
 # STYLE VIOLET
-# ============================================================
+# =========================
 
 st.markdown("""
 <style>
+.stApp {background:#faf7ff;}
+h1,h2,h3 {color:#6d28d9;}
 
-    /* ==============================
-       GENERAL
-       ============================== */
+section[data-testid="stSidebar"] {
+    background:linear-gradient(180deg,#4c1d95,#7c3aed);
+}
 
-    .stApp {
-        background: #faf8ff;
-    }
+section[data-testid="stSidebar"] * {
+    color:white !important;
+}
 
-    .main {
-        background: #faf8ff;
-    }
+.stButton>button,
+.stDownloadButton>button {
+    background:#7c3aed;
+    color:white;
+    border:0;
+    border-radius:10px;
+}
 
-    h1, h2, h3 {
-        color: #5b21b6;
-    }
-
-    p {
-        color: #374151;
-    }
-
-    /* ==============================
-       SIDEBAR
-       ============================== */
-
-    section[data-testid="stSidebar"] {
-        background: linear-gradient(
-            180deg,
-            #4c1d95 0%,
-            #6d28d9 45%,
-            #7c3aed 100%
-        );
-    }
-
-    section[data-testid="stSidebar"] * {
-        color: white !important;
-    }
-
-    /* ==============================
-       TITRE
-       ============================== */
-
-    .main-title {
-        font-size: 42px;
-        font-weight: 800;
-        color: #5b21b6;
-        margin-bottom: 5px;
-    }
-
-    .subtitle {
-        font-size: 17px;
-        color: #6b7280;
-        margin-bottom: 30px;
-    }
-
-    /* ==============================
-       CARDS
-       ============================== */
-
-    .metric-card {
-        background: white;
-        padding: 22px;
-        border-radius: 18px;
-        border: 1px solid #e9d5ff;
-        box-shadow: 0px 5px 20px rgba(91, 33, 182, 0.08);
-        text-align: center;
-        margin-bottom: 15px;
-    }
-
-    .metric-title {
-        color: #6b7280;
-        font-size: 14px;
-        font-weight: 600;
-    }
-
-    .metric-value {
-        color: #5b21b6;
-        font-size: 30px;
-        font-weight: 800;
-        margin-top: 5px;
-    }
-
-    /* ==============================
-       INFO BOX
-       ============================== */
-
-    .info-box {
-        background: #f3e8ff;
-        border-left: 5px solid #7c3aed;
-        padding: 18px;
-        border-radius: 12px;
-        margin: 15px 0;
-    }
-
-    /* ==============================
-       DATASET CARD
-       ============================== */
-
-    .dataset-card {
-        background: white;
-        border-radius: 16px;
-        padding: 20px;
-        border: 1px solid #e9d5ff;
-        box-shadow: 0px 4px 15px rgba(91, 33, 182, 0.06);
-        margin-bottom: 15px;
-    }
-
-    /* ==============================
-       BUTTONS
-       ============================== */
-
-    .stButton > button {
-        background: #7c3aed;
-        color: white;
-        border: none;
-        border-radius: 10px;
-        padding: 10px 20px;
-        font-weight: 600;
-    }
-
-    .stButton > button:hover {
-        background: #5b21b6;
-        color: white;
-    }
-
-    /* ==============================
-       DOWNLOAD BUTTON
-       ============================== */
-
-    .stDownloadButton > button {
-        background: #6d28d9;
-        color: white;
-        border-radius: 10px;
-        border: none;
-        font-weight: 600;
-    }
-
-    .stDownloadButton > button:hover {
-        background: #4c1d95;
-        color: white;
-    }
-
-    /* ==============================
-       TABS
-       ============================== */
-
-    button[data-baseweb="tab"] {
-        color: #5b21b6 !important;
-        font-weight: 600;
-    }
-
-    button[data-baseweb="tab"][aria-selected="true"] {
-        color: #7c3aed !important;
-    }
-
-    /* ==============================
-       LINKS
-       ============================== */
-
-    a {
-        color: #7c3aed !important;
-        font-weight: 600;
-    }
-
+.card {
+    background:white;
+    padding:20px;
+    border-radius:15px;
+    border:1px solid #e9d5ff;
+    text-align:center;
+}
 </style>
 """, unsafe_allow_html=True)
 
 
-# ============================================================
-# CHEMINS
-# ============================================================
+# =========================
+# SQL
+# =========================
 
-BASE_DIR = Path(__file__).resolve().parent
-
-COLAB_DIR = BASE_DIR / "Colab"
-WEB_SCRAPER_DIR = BASE_DIR / "Web_Scraper"
-FORMULAIRE_DIR = BASE_DIR / "Formulaire"
+def connect():
+    return sqlite3.connect(DB)
 
 
-# ============================================================
-# FONCTIONS UTILITAIRES
-# ============================================================
+def save(df, table):
+    con = connect()
+    df.to_sql(table, con, if_exists="replace", index=False)
+    con.close()
 
-def clean_dataframe(df):
-    """
-    Nettoyage générique des données.
-    Les colonnes numériques utilisent la médiane.
-    Les colonnes booléennes utilisent False.
-    Les autres colonnes utilisent 'Non renseigné'.
-    """
 
-    df = df.copy()
-
-    for col in df.columns:
-
-        if pd.api.types.is_numeric_dtype(df[col]):
-
-            median_value = df[col].median()
-
-            if pd.isna(median_value):
-                median_value = 0
-
-            df[col] = df[col].fillna(median_value)
-
-        elif pd.api.types.is_bool_dtype(df[col]):
-
-            df[col] = df[col].fillna(False)
-
-        else:
-
-            df[col] = df[col].fillna("Non renseigné")
-
+def read(table):
+    con = connect()
+    try:
+        df = pd.read_sql(f"SELECT * FROM {table}", con)
+    except:
+        df = pd.DataFrame()
+    con.close()
     return df
 
 
-def load_csv_files():
+# =========================
+# CSV BRUTS
+# JSON IGNORÉS
+# =========================
 
-    """
-    Charge uniquement les fichiers CSV du dossier Web_Scraper.
-    Les fichiers JSON sont volontairement ignorés.
-    """
+books_csv = WEB / "Source_1_Books_to_Scrape.csv"
+gaaraas_csv = WEB / "Source_2_Gaaraas).csv"
 
-    datasets = {}
+books = pd.read_csv(books_csv)
+gaaraas = pd.read_csv(gaaraas_csv)
 
-    if not WEB_SCRAPER_DIR.exists():
-        return datasets
-
-    for file in WEB_SCRAPER_DIR.glob("*.csv"):
-
-        try:
-
-            df = pd.read_csv(file)
-
-            datasets[file.name] = df
-
-        except Exception as e:
-
-            st.warning(
-                f"Impossible de lire {file.name}: {e}"
-            )
-
-    return datasets
+# Initialisation de la base
+if not DB.exists():
+    save(books, "books")
+    save(gaaraas, "gaaraas")
 
 
-def create_driver():
+# =========================
+# SELENIUM
+# =========================
 
-    """
-    Création d'un navigateur Chrome/Chromium
-    compatible avec un environnement Streamlit Cloud.
-    """
-
-    options = Options()
-
+def get_driver():
+    options = webdriver.ChromeOptions()
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument("--disable-extensions")
-    options.add_argument("--disable-infobars")
+    return webdriver.Chrome(options=options)
 
-    options.add_argument(
-        "--user-agent=Mozilla/5.0 "
-        "(X11; Linux x86_64) "
-        "AppleWebKit/537.36 "
-        "(KHTML, like Gecko) "
-        "Chrome/131.0.0.0 Safari/537.36"
-    )
 
-    driver = webdriver.Chrome(options=options)
+def scrape_books(pages):
+    driver = get_driver()
+    result = []
 
-    return driver
+    for i in range(1, pages + 1):
+        driver.get(
+            f"https://books.toscrape.com/catalogue/page-{i}.html"
+        )
+        time.sleep(1)
 
-
-# ============================================================
-# SCRAPING BOOKS TO SCRAPE
-# ============================================================
-
-@st.cache_data(show_spinner=False)
-def scrape_books(max_pages):
-
-    url_base = "https://books.toscrape.com/catalogue/page-{}.html"
-
-    data = []
-
-    driver = None
-
-    try:
-
-        driver = create_driver()
-
-        for page in range(1, max_pages + 1):
-
-            url = url_base.format(page)
-
-            driver.get(url)
-
-            try:
-
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_all_elements_located(
-                        (By.CSS_SELECTOR, "article.product_pod")
-                    )
-                )
-
-            except Exception:
-
-                continue
-
-            products = driver.find_elements(
-                By.CSS_SELECTOR,
-                "article.product_pod"
-            )
-
-            for product in products:
-
-                try:
-
-                    title = product.find_element(
-                        By.CSS_SELECTOR,
-                        "h3 a"
-                    ).get_attribute("title")
-
-                except Exception:
-
-                    title = "Non renseigné"
-
-                try:
-
-                    price = product.find_element(
-                        By.CSS_SELECTOR,
-                        ".price_color"
-                    ).text
-
-                except Exception:
-
-                    price = "Non renseigné"
-
-                try:
-
-                    availability = product.find_element(
-                        By.CSS_SELECTOR,
-                        ".availability"
-                    ).text.strip()
-
-                except Exception:
-
-                    availability = "Non renseigné"
-
-                try:
-
-                    rating_element = product.find_element(
-                        By.CSS_SELECTOR,
-                        "p.star-rating"
-                    )
-
-                    rating = rating_element.get_attribute(
-                        "class"
-                    ).replace("star-rating", "").strip()
-
-                except Exception:
-
-                    rating = "Non renseigné"
-
-                try:
-
-                    product_url = product.find_element(
-                        By.CSS_SELECTOR,
-                        "h3 a"
-                    ).get_attribute("href")
-
-                except Exception:
-
-                    product_url = "Non renseigné"
-
-                data.append({
-                    "Titre": title,
-                    "Prix": price,
-                    "Disponibilité": availability,
-                    "Évaluation": rating,
-                    "URL": product_url,
-                    "Page": page
-                })
-
-    except Exception as e:
-
-        return pd.DataFrame(), str(e)
-
-    finally:
-
-        if driver:
-
-            driver.quit()
-
-    return pd.DataFrame(data), None
-
-
-# ============================================================
-# SCRAPING GAARAAS
-# ============================================================
-
-@st.cache_data(show_spinner=False)
-def scrape_gaaraas(max_pages):
-
-    """
-    Scraping multi-pages du site Gaaraas.
-
-    Les sélecteurs sont volontairement robustes afin de
-    fonctionner avec différentes structures de cartes.
-    """
-
-    url_base = "https://gaaraas.com/vehicles?page={}"
-
-    data = []
-
-    driver = None
-
-    try:
-
-        driver = create_driver()
-
-        for page in range(1, max_pages + 1):
-
-            url = url_base.format(page)
-
-            driver.get(url)
-
-            time.sleep(2)
-
-            cards = driver.find_elements(
-                By.CSS_SELECTOR,
-                "a"
-            )
-
-            for card in cards:
-
-                try:
-
-                    text = card.text.strip()
-
-                    if not text:
-                        continue
-
-                    href = card.get_attribute("href")
-
-                    if not href:
-                        continue
-
-                    if "gaaraas" not in href.lower():
-                        continue
-
-                    data.append({
-                        "Informations": text,
-                        "URL": href,
-                        "Page": page
-                    })
-
-                except Exception:
-
-                    continue
-
-    except Exception as e:
-
-        return pd.DataFrame(), str(e)
-
-    finally:
-
-        if driver:
-
-            driver.quit()
-
-    df = pd.DataFrame(data)
-
-    if not df.empty:
-
-        df = df.drop_duplicates(
-            subset=["URL"]
+        links = driver.find_elements(
+            By.CSS_SELECTOR,
+            "article.product_pod h3 a"
         )
 
-    return df, None
+        urls = [
+            x.get_attribute("href")
+            for x in links
+        ]
+
+        for url in urls:
+            try:
+                driver.get(url)
+
+                result.append({
+                    "page": i,
+                    "number_of_products": len(links),
+                    "title": driver.find_element(
+                        By.CSS_SELECTOR,
+                        "div.product_main h1"
+                    ).text,
+                    "price": driver.find_element(
+                        By.CSS_SELECTOR,
+                        "div.product_main p.price_color"
+                    ).text,
+                    "availability": driver.find_element(
+                        By.CSS_SELECTOR,
+                        "div.product_main p.instock.availability"
+                    ).text,
+                    "star_rating": driver.find_element(
+                        By.CSS_SELECTOR,
+                        "div.product_main p.star-rating"
+                    ).get_attribute("class"),
+                    "reviews": driver.find_element(
+                        By.CSS_SELECTOR,
+                        "table.table-striped tr:nth-child(7) td"
+                    ).text,
+                    "description": driver.find_element(
+                        By.CSS_SELECTOR,
+                        "#product_description + p"
+                    ).text,
+                    "product_type": driver.find_element(
+                        By.CSS_SELECTOR,
+                        "ul.breadcrumb li:nth-child(3) a"
+                    ).text,
+                    "tax": driver.find_element(
+                        By.CSS_SELECTOR,
+                        "table.table-striped tr:nth-child(5) td"
+                    ).text
+                })
+
+            except:
+                pass
+
+    driver.quit()
+    return pd.DataFrame(result)
 
 
-# ============================================================
-# EXPORT CSV
-# ============================================================
+def scrape_gaaraas(pages):
+    driver = get_driver()
+    result = []
 
-def dataframe_to_csv(df):
+    for i in range(1, pages + 1):
 
-    return df.to_csv(
-        index=False,
-        encoding="utf-8-sig"
-    ).encode("utf-8-sig")
+        driver.get(
+            f"https://www.gaaraas.com/fr/users/dakar-auto?page={i}"
+        )
+        time.sleep(2)
+
+        cards = driver.find_elements(
+            By.CSS_SELECTOR,
+            "a.common-ad-card"
+        )
+
+        urls = [
+            card.get_attribute("href")
+            for card in cards
+        ]
+
+        for url in urls:
+            try:
+                driver.get(url)
+
+                result.append({
+                    "page": i,
+                    "number_of_ads": len(cards),
+                    "marque_modele": driver.find_element(
+                        By.CSS_SELECTOR,
+                        ".ad-title-block h2"
+                    ).text,
+                    "annee": driver.find_element(
+                        By.CSS_SELECTOR,
+                        "div.prop:nth-of-type(4) span:nth-of-type(2)"
+                    ).text,
+                    "prix": driver.find_element(
+                        By.CSS_SELECTOR,
+                        ".back-wrapper .ad-price span.price-wrap"
+                    ).text,
+                    "kilometrage": driver.find_element(
+                        By.CSS_SELECTOR,
+                        "div.prop:nth-of-type(3) span:nth-of-type(2)"
+                    ).text,
+                    "type_boite_de_vitesse": driver.find_element(
+                        By.CSS_SELECTOR,
+                        "div.prop:nth-of-type(2) span:nth-of-type(2)"
+                    ).text,
+                    "region_de_vente": driver.find_element(
+                        By.CSS_SELECTOR,
+                        ".ad-title a span"
+                    ).text,
+                    "url": url
+                })
+
+            except:
+                pass
+
+    driver.quit()
+    return pd.DataFrame(result)
 
 
-# ============================================================
-# HEADER
-# ============================================================
+# =========================
+# MENU
+# =========================
 
-st.markdown(
-    '<div class="main-title">💜 Data Collection</div>',
-    unsafe_allow_html=True
-)
+st.sidebar.title("💜 Data Collection")
 
-st.markdown(
-    '<div class="subtitle">'
-    'Plateforme de collecte, exploration et visualisation '
-    'des données issues du Web Scraping'
-    '</div>',
-    unsafe_allow_html=True
-)
-
-
-# ============================================================
-# SIDEBAR
-# ============================================================
-
-st.sidebar.markdown(
-    "## 💜 DATA COLLECTION"
-)
-
-st.sidebar.markdown(
-    "### Navigation"
-)
-
-page = st.sidebar.radio(
-    "",
+menu = st.sidebar.radio(
+    "Navigation",
     [
         "🏠 Accueil",
-        "🕷️ Scraping Selenium",
+        "🕷️ Scraping",
         "📁 Données brutes",
         "📊 Dashboard",
+        "🗄️ Base SQL",
         "📝 Évaluation"
     ]
 )
 
-st.sidebar.markdown("---")
 
-st.sidebar.markdown(
-    """
-    **Projet Data Collection**
-
-    Cette application permet de :
-
-    • scraper plusieurs pages  
-    • télécharger les données brutes  
-    • analyser les données nettoyées  
-    • visualiser un dashboard  
-    • évaluer l'application
-    """
-)
-
-
-# ============================================================
+# =========================
 # ACCUEIL
-# ============================================================
+# =========================
 
-if page == "🏠 Accueil":
+if menu == "🏠 Accueil":
 
-    st.markdown("## Bienvenue 👋")
+    st.title("💜 Data Collection")
 
-    st.markdown(
-        """
-        <div class="info-box">
+    st.write(
+        "Application de collecte, stockage et visualisation "
+        "des données issues du Web Scraping."
+    )
 
-        Cette application centralise les différentes étapes
-        de notre projet de <strong>Data Collection</strong>.
+    c1, c2, c3 = st.columns(3)
 
-        Elle permet de collecter des données avec Selenium,
-        consulter les données brutes produites par Web Scraper,
-        explorer les données nettoyées et accéder aux formulaires
-        d'évaluation.
-
-        </div>
-        """,
+    c1.markdown(
+        f'<div class="card"><h3>📚 Books</h3>'
+        f'<h2>{len(books)}</h2></div>',
         unsafe_allow_html=True
     )
 
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-
-        st.markdown(
-            """
-            <div class="metric-card">
-                <div class="metric-title">Sources</div>
-                <div class="metric-value">2</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with col2:
-
-        st.markdown(
-            """
-            <div class="metric-card">
-                <div class="metric-title">Méthode</div>
-                <div class="metric-value">Selenium</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with col3:
-
-        st.markdown(
-            """
-            <div class="metric-card">
-                <div class="metric-title">Données</div>
-                <div class="metric-value">CSV</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with col4:
-
-        st.markdown(
-            """
-            <div class="metric-card">
-                <div class="metric-title">Dashboard</div>
-                <div class="metric-value">✓</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    st.markdown("---")
-
-    st.subheader("🚀 Fonctionnalités")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        st.markdown(
-            """
-            ### 🕷️ Scraping Selenium
-
-            Scrapez automatiquement plusieurs pages
-            depuis les différentes sources du projet.
-
-            Les données peuvent ensuite être téléchargées
-            directement au format CSV.
-            """
-        )
-
-    with col2:
-
-        st.markdown(
-            """
-            ### 📊 Dashboard
-
-            Explorez les données nettoyées avec :
-
-            - indicateurs statistiques
-            - tableaux
-            - graphiques
-            - filtres
-            - analyses descriptives
-            """
-        )
-
-
-# ============================================================
-# SCRAPING SELENIUM
-# ============================================================
-
-elif page == "🕷️ Scraping Selenium":
-
-    st.header("🕷️ Scraping multi-pages avec Selenium")
-
-    st.markdown(
-        """
-        Cette section permet de lancer les deux scrapers
-        utilisés dans le projet.
-        """
-    )
-
-    tab1, tab2 = st.tabs(
-        [
-            "📚 Books to Scrape",
-            "🚗 Gaaraas"
-        ]
-    )
-
-    # --------------------------------------------------------
-    # BOOKS
-    # --------------------------------------------------------
-
-    with tab1:
-
-        st.subheader("📚 Books to Scrape")
-
-        pages_books = st.slider(
-            "Nombre de pages à scraper",
-            min_value=1,
-            max_value=50,
-            value=5,
-            key="books_pages"
-        )
-
-        st.info(
-            f"Vous allez scraper {pages_books} page(s)."
-        )
-
-        if st.button(
-            "🚀 Lancer le scraping Books",
-            key="scrape_books_button"
-        ):
-
-            with st.spinner(
-                "Scraping des livres en cours..."
-            ):
-
-                df_books, error = scrape_books(
-                    pages_books
-                )
-
-            if error:
-
-                st.error(
-                    f"Erreur pendant le scraping : {error}"
-                )
-
-            elif df_books.empty:
-
-                st.warning(
-                    "Aucune donnée n'a été récupérée."
-                )
-
-            else:
-
-                st.success(
-                    f"{len(df_books)} livres récupérés."
-                )
-
-                st.dataframe(
-                    df_books,
-                    use_container_width=True,
-                    hide_index=True
-                )
-
-                st.download_button(
-                    label="⬇️ Télécharger les données Books",
-                    data=dataframe_to_csv(df_books),
-                    file_name="books_selenium.csv",
-                    mime="text/csv"
-                )
-
-    # --------------------------------------------------------
-    # GAARAAS
-    # --------------------------------------------------------
-
-    with tab2:
-
-        st.subheader("🚗 Gaaraas")
-
-        pages_gaaraas = st.slider(
-            "Nombre de pages à scraper",
-            min_value=1,
-            max_value=13,
-            value=5,
-            key="gaaraas_pages"
-        )
-
-        st.info(
-            f"Vous allez scraper {pages_gaaraas} page(s)."
-        )
-
-        if st.button(
-            "🚀 Lancer le scraping Gaaraas",
-            key="scrape_gaaraas_button"
-        ):
-
-            with st.spinner(
-                "Scraping des véhicules en cours..."
-            ):
-
-                df_gaaraas, error = scrape_gaaraas(
-                    pages_gaaraas
-                )
-
-            if error:
-
-                st.error(
-                    f"Erreur pendant le scraping : {error}"
-                )
-
-            elif df_gaaraas.empty:
-
-                st.warning(
-                    "Aucune donnée n'a été récupérée."
-                )
-
-            else:
-
-                st.success(
-                    f"{len(df_gaaraas)} annonces récupérées."
-                )
-
-                st.dataframe(
-                    df_gaaraas,
-                    use_container_width=True,
-                    hide_index=True
-                )
-
-                st.download_button(
-                    label="⬇️ Télécharger les données Gaaraas",
-                    data=dataframe_to_csv(df_gaaraas),
-                    file_name="gaaraas_selenium.csv",
-                    mime="text/csv"
-                )
-
-
-# ============================================================
-# DONNÉES BRUTES
-# ============================================================
-
-elif page == "📁 Données brutes":
-
-    st.header("📁 Données brutes — Web Scraper")
-
-    st.markdown(
-        """
-        Les fichiers présentés ici proviennent du dossier
-        <strong>Web_Scraper</strong>.
-
-        Seuls les fichiers <strong>CSV</strong> sont utilisés.
-        Les fichiers JSON sont volontairement ignorés.
-        """,
+    c2.markdown(
+        f'<div class="card"><h3>🚗 Gaaraas</h3>'
+        f'<h2>{len(gaaraas)}</h2></div>',
         unsafe_allow_html=True
     )
 
-    datasets = load_csv_files()
-
-    if not datasets:
-
-        st.warning(
-            "Aucun fichier CSV trouvé dans Web_Scraper."
-        )
-
-    else:
-
-        st.success(
-            f"{len(datasets)} fichier(s) CSV trouvé(s)."
-        )
-
-        for filename, df in datasets.items():
-
-            with st.expander(
-                f"📄 {filename}"
-            ):
-
-                col1, col2, col3 = st.columns(3)
-
-                with col1:
-
-                    st.metric(
-                        "Lignes",
-                        len(df)
-                    )
-
-                with col2:
-
-                    st.metric(
-                        "Colonnes",
-                        len(df.columns)
-                    )
-
-                with col3:
-
-                    st.metric(
-                        "Valeurs manquantes",
-                        int(df.isna().sum().sum())
-                    )
-
-                st.dataframe(
-                    df,
-                    use_container_width=True,
-                    hide_index=True
-                )
-
-                st.download_button(
-                    label=f"⬇️ Télécharger {filename}",
-                    data=dataframe_to_csv(df),
-                    file_name=filename,
-                    mime="text/csv",
-                    key=f"download_{filename}"
-                )
+    c3.markdown(
+        '<div class="card"><h3>🗄️ SQL</h3>'
+        '<h2>SQLite</h2></div>',
+        unsafe_allow_html=True
+    )
 
 
-# ============================================================
-# DASHBOARD
-# ============================================================
+# =========================
+# SCRAPING
+# =========================
 
-elif page == "📊 Dashboard":
+elif menu == "🕷️ Scraping":
 
-    st.header("📊 Dashboard des données nettoyées")
+    st.title("🕷️ Scraping Selenium")
 
-    datasets = load_csv_files()
+    source = st.selectbox(
+        "Choisir la source",
+        ["Books to Scrape", "Gaaraas"]
+    )
 
-    if not datasets:
+    max_pages = 50 if source == "Books to Scrape" else 13
 
-        st.warning(
-            "Aucune donnée CSV disponible pour construire le dashboard."
-        )
+    pages = st.slider(
+        "Nombre de pages",
+        1,
+        max_pages,
+        min(5, max_pages)
+    )
 
-    else:
+    if st.button("🚀 Lancer le scraping"):
 
-        dataset_name = st.selectbox(
-            "Choisir le jeu de données",
-            list(datasets.keys())
-        )
+        with st.spinner("Scraping en cours..."):
 
-        df_raw = datasets[dataset_name]
+            if source == "Books to Scrape":
+                df = scrape_books(pages)
+                table = "books"
+            else:
+                df = scrape_gaaraas(pages)
+                table = "gaaraas"
 
-        df = clean_dataframe(df_raw)
+        if df.empty:
+            st.error("Aucune donnée récupérée.")
+        else:
+            save(df, table)
 
-        st.markdown(
-            f"### 📌 Analyse de : `{dataset_name}`"
-        )
-
-        # ----------------------------------------------------
-        # INDICATEURS
-        # ----------------------------------------------------
-
-        col1, col2, col3, col4 = st.columns(4)
-
-        with col1:
-
-            st.markdown(
-                f"""
-                <div class="metric-card">
-                    <div class="metric-title">Observations</div>
-                    <div class="metric-value">
-                        {len(df):,}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True
+            st.success(
+                f"{len(df)} données enregistrées dans SQL."
             )
-
-        with col2:
-
-            st.markdown(
-                f"""
-                <div class="metric-card">
-                    <div class="metric-title">Variables</div>
-                    <div class="metric-value">
-                        {len(df.columns)}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-        with col3:
-
-            numeric_columns = df.select_dtypes(
-                include=np.number
-            ).columns
-
-            st.markdown(
-                f"""
-                <div class="metric-card">
-                    <div class="metric-title">
-                        Variables numériques
-                    </div>
-                    <div class="metric-value">
-                        {len(numeric_columns)}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-        with col4:
-
-            missing = int(
-                df_raw.isna().sum().sum()
-            )
-
-            st.markdown(
-                f"""
-                <div class="metric-card">
-                    <div class="metric-title">
-                        Valeurs manquantes initiales
-                    </div>
-                    <div class="metric-value">
-                        {missing}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-        st.markdown("---")
-
-        # ----------------------------------------------------
-        # ONGLETS
-        # ----------------------------------------------------
-
-        tab_data, tab_stats, tab_graphs, tab_missing = st.tabs(
-            [
-                "📋 Données",
-                "📈 Statistiques",
-                "📊 Visualisations",
-                "🧹 Nettoyage"
-            ]
-        )
-
-        # ----------------------------------------------------
-        # DONNEES
-        # ----------------------------------------------------
-
-        with tab_data:
-
-            st.subheader("📋 Données nettoyées")
 
             st.dataframe(
                 df,
-                use_container_width=True,
-                hide_index=True
-            )
-
-            st.download_button(
-                label="⬇️ Télécharger les données nettoyées",
-                data=dataframe_to_csv(df),
-                file_name=f"cleaned_{dataset_name}",
-                mime="text/csv"
-            )
-
-        # ----------------------------------------------------
-        # STATISTIQUES
-        # ----------------------------------------------------
-
-        with tab_stats:
-
-            st.subheader(
-                "📈 Statistiques descriptives"
-            )
-
-            numeric_df = df.select_dtypes(
-                include=np.number
-            )
-
-            if numeric_df.empty:
-
-                st.info(
-                    "Aucune variable numérique disponible."
-                )
-
-            else:
-
-                st.dataframe(
-                    numeric_df.describe().T,
-                    use_container_width=True
-                )
-
-        # ----------------------------------------------------
-        # GRAPHIQUES
-        # ----------------------------------------------------
-
-        with tab_graphs:
-
-            st.subheader(
-                "📊 Visualisation des données"
-            )
-
-            numeric_columns = df.select_dtypes(
-                include=np.number
-            ).columns.tolist()
-
-            if numeric_columns:
-
-                selected_column = st.selectbox(
-                    "Variable numérique",
-                    numeric_columns
-                )
-
-                chart_data = df[
-                    [selected_column]
-                ].copy()
-
-                chart_data = chart_data.reset_index(
-                    drop=True
-                )
-
-                st.line_chart(
-                    chart_data,
-                    use_container_width=True
-                )
-
-                st.bar_chart(
-                    chart_data,
-                    use_container_width=True
-                )
-
-            else:
-
-                st.info(
-                    "Aucune variable numérique disponible "
-                    "pour les graphiques."
-                )
-
-            # Variables catégorielles
-
-            categorical_columns = df.select_dtypes(
-                include=["object", "category"]
-            ).columns.tolist()
-
-            if categorical_columns:
-
-                st.markdown("---")
-
-                st.subheader(
-                    "📊 Répartition d'une variable catégorielle"
-                )
-
-                category = st.selectbox(
-                    "Choisir une variable",
-                    categorical_columns
-                )
-
-                counts = (
-                    df[category]
-                    .value_counts()
-                    .head(10)
-                )
-
-                st.bar_chart(
-                    counts,
-                    use_container_width=True
-                )
-
-        # ----------------------------------------------------
-        # VALEURS MANQUANTES
-        # ----------------------------------------------------
-
-        with tab_missing:
-
-            st.subheader(
-                "🧹 Gestion des valeurs manquantes"
-            )
-
-            missing_before = df_raw.isna().sum()
-
-            missing_after = df.isna().sum()
-
-            missing_table = pd.DataFrame({
-                "Avant nettoyage": missing_before,
-                "Après nettoyage": missing_after
-            })
-
-            st.dataframe(
-                missing_table,
                 use_container_width=True
             )
 
-            if missing_after.sum() == 0:
-
-                st.success(
-                    "✓ Il ne reste aucune valeur manquante."
-                )
-
-            else:
-
-                st.warning(
-                    "Certaines valeurs manquantes subsistent."
-                )
+            st.download_button(
+                "⬇️ Télécharger CSV",
+                df.to_csv(index=False).encode("utf-8"),
+                f"{table}_selenium.csv",
+                "text/csv"
+            )
 
 
-# ============================================================
-# EVALUATION
-# ============================================================
+# =========================
+# DONNÉES BRUTES
+# =========================
 
-elif page == "📝 Évaluation":
+elif menu == "📁 Données brutes":
 
-    st.header("📝 Évaluation de l'application")
+    st.title("📁 Données brutes Web Scraper")
 
-    st.markdown(
-        """
-        Votre avis nous permet d'améliorer l'application,
-        l'expérience utilisateur et la qualité de la collecte
-        de données.
-        """
+    for file in [books_csv, gaaraas_csv]:
+
+        df = pd.read_csv(file)
+
+        with st.expander(f"📄 {file.name}"):
+
+            st.write(
+                f"{len(df)} lignes × {len(df.columns)} colonnes"
+            )
+
+            st.dataframe(
+                df,
+                use_container_width=True
+            )
+
+            st.download_button(
+                "⬇️ Télécharger",
+                df.to_csv(index=False).encode("utf-8"),
+                file.name,
+                "text/csv"
+            )
+
+
+# =========================
+# DASHBOARD
+# =========================
+
+elif menu == "📊 Dashboard":
+
+    st.title("📊 Dashboard")
+
+    source = st.selectbox(
+        "Source",
+        ["Books to Scrape", "Gaaraas"]
     )
 
-    st.markdown("---")
+    table = "books" if source == "Books to Scrape" else "gaaraas"
+    df = read(table)
 
-    col1, col2 = st.columns(2)
+    if df.empty:
+        st.warning("Aucune donnée dans la base SQL.")
+    else:
 
-    # --------------------------------------------------------
-    # KOBO
-    # --------------------------------------------------------
+        c1, c2 = st.columns(2)
 
-    with col1:
+        c1.metric("Observations", len(df))
+        c2.metric("Variables", len(df.columns))
 
-        st.markdown(
-            """
-            <div class="dataset-card">
+        st.subheader("Données nettoyées")
 
-            ## 📱 KoboToolbox
+        df = df.fillna("Non renseigné")
 
-            Évaluez l'application à travers le formulaire
-            KoboToolbox.
-
-            </div>
-            """,
-            unsafe_allow_html=True
+        st.dataframe(
+            df,
+            use_container_width=True
         )
 
-        # Remplacer cette URL par l'URL exacte du formulaire Kobo
-        kobo_url = st.text_input(
-            "URL du formulaire Kobo",
-            value="",
-            key="kobo_url"
-        )
+        numeric = df.select_dtypes("number")
 
-        if kobo_url:
+        if not numeric.empty:
 
-            st.link_button(
-                "📱 Ouvrir le formulaire Kobo",
-                kobo_url
+            column = st.selectbox(
+                "Variable numérique",
+                numeric.columns
             )
 
-    # --------------------------------------------------------
-    # GOOGLE FORMS
-    # --------------------------------------------------------
+            st.subheader("📈 Visualisation")
 
-    with col2:
-
-        st.markdown(
-            """
-            <div class="dataset-card">
-
-            ## 📝 Google Forms
-
-            Évaluez également l'application via
-            Google Forms.
-
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-        # Remplacer cette URL par l'URL exacte du formulaire Google
-        google_url = st.text_input(
-            "URL du formulaire Google Forms",
-            value="",
-            key="google_url"
-        )
-
-        if google_url:
-
-            st.link_button(
-                "📝 Ouvrir Google Forms",
-                google_url
+            st.bar_chart(
+                df[column],
+                use_container_width=True
             )
 
-    st.markdown("---")
+
+# =========================
+# BASE SQL
+# =========================
+
+elif menu == "🗄️ Base SQL":
+
+    st.title("🗄️ Base de données SQL")
+
+    st.write(
+        "La base SQLite contient une table par source."
+    )
+
+    for table in ["books", "gaaraas"]:
+
+        df = read(table)
+
+        st.subheader(f"Table : {table}")
+
+        st.metric(
+            "Nombre d'enregistrements",
+            len(df)
+        )
+
+        st.dataframe(
+            df.head(20),
+            use_container_width=True
+        )
+
+    if DB.exists():
+
+        st.download_button(
+            "⬇️ Télécharger la base SQLite",
+            DB.read_bytes(),
+            "data.db",
+            "application/x-sqlite3"
+        )
+
+
+# =========================
+# ÉVALUATION
+# =========================
+
+elif menu == "📝 Évaluation":
+
+    st.title("📝 Évaluation de l'application")
+
+    st.write(
+        "Merci de prendre quelques minutes pour évaluer "
+        "notre application."
+    )
+
+    st.link_button(
+        "📱 Ouvrir KoboToolbox",
+        "https://ee.kobotoolbox.org/"
+    )
+
+    st.link_button(
+        "📝 Ouvrir Google Forms",
+        "https://forms.google.com/"
+    )
 
     st.info(
-        "Les fichiers d'évaluation présents dans le dossier "
-        "Formulaire peuvent également être conservés dans le "
-        "dépôt pour consultation."
+        "Les résultats des formulaires sont conservés "
+        "dans le dossier Formulaire."
     )
-
-
-# ============================================================
-# FOOTER
-# ============================================================
-
-st.markdown("---")
-
-st.markdown(
-    """
-    <div style="text-align:center; color:#6b7280; padding:20px;">
-
-    💜 <strong>Data Collection Dashboard</strong><br>
-
-    Selenium • Web Scraper • Pandas • Streamlit
-
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-```
-
 
 
 
