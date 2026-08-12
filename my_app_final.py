@@ -466,8 +466,7 @@ if menu == "Accueil":
         - 📊 dashboard des données nettoyées ;
         - 📝 accès aux formulaires d'évaluation ;
         - 🗄️ stockage SQL.
-
-        **Les fichiers JSON sont volontairement ignorés.**
+        
         """
     )
 
