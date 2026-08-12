@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-\# CONFIGURATION
+# CONFIGURATION
 
 st.set\_page\_config(
     page\_title="Data Collection - Examen",
@@ -20,13 +20,13 @@ FORM\_DIR = BASE\_DIR / "Formulaire"
 
 DB\_PATH = BASE\_DIR / "data\_collection.db"
 
-\# Fichiers finaux utilisés.
+# Fichiers finaux utilisés.
 BOOKS\_CSV = WEB\_SCRAPER\_DIR / "Source\_1\_Books\_to\_Scrape.csv"
 GAARAAS\_CSV = WEB\_SCRAPER\_DIR / "Source\_2\_Gaaraas).csv"
 
-\# Les JSON du dossier Web\_Scraper sont volontairement ignorés.
+# Les JSON du dossier Web\_Scraper sont volontairement ignorés.
 
-\# Liens directs des formulaires.
+# Liens directs des formulaires.
 GOOGLE\_FORM\_URL = (
     "[https://docs.google.com/forms/d/e/](https://docs.google.com/forms/d/e/)"
     "1FAIpQLSc7F8m3eBJkCqpOUa4pTQX0zyIov\_4LWXRYOV3XKbmi0vJJoQ/"
@@ -34,7 +34,7 @@ GOOGLE\_FORM\_URL = (
 )
 KOBO\_FORM\_URL = "[https://ee.kobotoolbox.org/i/1zbGqqaq](https://ee.kobotoolbox.org/i/1zbGqqaq)"
 
-\# BASE SQL
+# BASE SQL
 
 def get\_connection():
     return sqlite3.connect(DB\_PATH)
@@ -62,7 +62,7 @@ def get\_sql\_tables():
 
     return [row[0] for row in rows]
 
-\# LECTURE CSV
+# LECTURE CSV
 
 def read\_csv\_file(path):
     if not path.exists():
@@ -80,7 +80,7 @@ def read\_csv\_file(path):
 
     return None
 
-\# SELENIUM
+# SELENIUM
 
 def create\_driver():
     from selenium import webdriver
@@ -107,7 +107,7 @@ def create\_driver():
 
     return webdriver.Chrome(options=options)
 
-\# SELENIUM - BOOKS TO SCRAPE
+# SELENIUM - BOOKS TO SCRAPE
 
 def scrape\_books(start\_page=1, end\_page=50):
 
@@ -223,7 +223,7 @@ def scrape\_books(start\_page=1, end\_page=50):
 
     return pd.DataFrame(records)
 
-\# SELENIUM - GAARAAS
+# SELENIUM - GAARAAS
 
 def scrape\_gaaraas(start\_page=1, end\_page=13):
 
@@ -324,7 +324,7 @@ def scrape\_gaaraas(start\_page=1, end\_page=13):
 
     return pd.DataFrame(records)
 
-\# NETTOYAGE
+# NETTOYAGE
 
 def clean\_books(df):
 
@@ -419,9 +419,9 @@ def clean\_gaaraas(df):
     return df.drop\_duplicates().reset\_index(drop=True)
 
 
-\# ============================================================
-\# SESSION STATE
-\# ============================================================
+# ============================================================
+# SESSION STATE
+# ============================================================
 
 if "books\_selenium" not in st.session\_state:
     st.session\_state.books\_selenium = None
@@ -429,7 +429,7 @@ if "books\_selenium" not in st.session\_state:
 if "gaaraas\_selenium" not in st.session\_state:
     st.session\_state.gaaraas\_selenium = None
 
-\# SIDEBAR
+# SIDEBAR
 
 st.sidebar.title("📊 Data Collection")
 
@@ -448,7 +448,7 @@ menu = st.sidebar.radio(
 st.sidebar.markdown("---")
 st.sidebar.caption("Projet Examen Data Collection")
 
-\# ACCUEIL
+# ACCUEIL
 
 if menu == "Accueil":
 
@@ -495,7 +495,7 @@ if menu == "Accueil":
             2
         )
 
-\# SCRAPING SELENIUM
+# SCRAPING SELENIUM
 
 elif menu == "Scraping Selenium":
 
@@ -508,7 +508,7 @@ elif menu == "Scraping Selenium":
         ]
     )
 
-    \# BOOKS
+    # BOOKS
 
     with tab\_books:
 
@@ -606,7 +606,7 @@ elif menu == "Scraping Selenium":
                 use\_container\_width=True
             )
 
-    \# GAARAAS
+    # GAARAAS
 
     with tab\_gaaraas:
 
@@ -704,7 +704,7 @@ elif menu == "Scraping Selenium":
                 use\_container\_width=True
             )
 
-\# DONNEES WEB SCRAPER
+# DONNEES WEB SCRAPER
 
 elif menu == "Données Web Scraper":
 
@@ -785,7 +785,7 @@ elif menu == "Données Web Scraper":
                 "webscraper\_gaaraas"
             )
 
-\# DASHBOARD
+# DASHBOARD
 
 elif menu == "Dashboard":
 
@@ -1048,7 +1048,7 @@ elif menu == "Dashboard":
                 use\_container\_width=True
             )
 
-\# FORMULAIRES D'EVALUATION
+# FORMULAIRES D'EVALUATION
 
 elif menu == "Formulaires d'évaluation":
 
@@ -1072,7 +1072,7 @@ elif menu == "Formulaires d'évaluation":
         use\_container\_width=True
     )
 
-\# BASE SQL
+# BASE SQL
 
 elif menu == "Base SQL":
 
