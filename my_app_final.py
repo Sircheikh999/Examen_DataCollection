@@ -5,1172 +5,1172 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-# CONFIGURATION
+\# CONFIGURATION
 
-st.set_page_config(
- page_title="Data Collection - Examen",
- page_icon="",
- layout="wide",
+st.set\_page\_config(
+    page\_title="Data Collection - Examen",
+    page\_icon="📊",
+    layout="wide",
 )
 
-BASE_DIR = Path(__file__).resolve().parent
-COLAB_DIR = BASE_DIR / "Colab"
-WEB_SCRAPER_DIR = BASE_DIR / "Web_Scraper"
-FORM_DIR = BASE_DIR / "Formulaire"
+BASE\_DIR = Path(\_\_file\_\_).resolve().parent
+COLAB\_DIR = BASE\_DIR / "Colab"
+WEB\_SCRAPER\_DIR = BASE\_DIR / "Web\_Scraper"
+FORM\_DIR = BASE\_DIR / "Formulaire"
 
-DB_PATH = BASE_DIR / "data_collection.db"
+DB\_PATH = BASE\_DIR / "data\_collection.db"
 
-# Fichiers finaux utilisés.
-BOOKS_CSV = WEB_SCRAPER_DIR / "Source_1_Books_to_Scrape.csv"
-GAARAAS_CSV = WEB_SCRAPER_DIR / "Source_2_Gaaraas).csv"
+\# Fichiers finaux utilisés.
+BOOKS\_CSV = WEB\_SCRAPER\_DIR / "Source\_1\_Books\_to\_Scrape.csv"
+GAARAAS\_CSV = WEB\_SCRAPER\_DIR / "Source\_2\_Gaaraas).csv"
 
-# Les JSON du dossier Web_Scraper sont volontairement ignorés.
+\# Les JSON du dossier Web\_Scraper sont volontairement ignorés.
 
-# Liens directs des formulaires.
-GOOGLE_FORM_URL = (
- "https://docs.google.com/forms/d/e/"
- "1FAIpQLSc7F8m3eBJkCqpOUa4pTQX0zyIov_4LWXRYOV3XKbmi0vJJoQ/"
- "viewform?usp=publish-editor"
+\# Liens directs des formulaires.
+GOOGLE\_FORM\_URL = (
+    "[https://docs.google.com/forms/d/e/](https://docs.google.com/forms/d/e/)"
+    "1FAIpQLSc7F8m3eBJkCqpOUa4pTQX0zyIov\_4LWXRYOV3XKbmi0vJJoQ/"
+    "viewform?usp=publish-editor"
 )
-KOBO_FORM_URL = "https://ee.kobotoolbox.org/i/1zbGqqaq"
+KOBO\_FORM\_URL = "[https://ee.kobotoolbox.org/i/1zbGqqaq](https://ee.kobotoolbox.org/i/1zbGqqaq)"
 
-# BASE SQL
+\# BASE SQL
 
-def get_connection():
- return sqlite3.connect(DB_PATH)
-
-
-def save_to_sql(df, table_name):
- if df is None or df.empty:
- return
-
- with get_connection() as conn:
- df.to_sql(
- table_name,
- conn,
- if_exists="replace",
- index=False
- )
-
-
-def get_sql_tables():
- with get_connection() as conn:
- rows = conn.execute(
- "SELECT name FROM sqlite_master "
- "WHERE type='table' ORDER BY name"
- ).fetchall()
-
- return [row[0] for row in rows]
-
-# LECTURE CSV
-
-def read_csv_file(path):
- if not path.exists():
- return None
-
- for encoding in ("utf-8-sig", "utf-8", "latin1"):
- try:
- return pd.read_csv(
- path,
- encoding=encoding,
- on_bad_lines="skip"
- )
- except Exception:
- continue
-
- return None
-
-# SELENIUM
-
-def create_driver():
- from selenium import webdriver
- from selenium.webdriver.chrome.options import Options
-
- options = Options()
-
- for binary in (
- "/usr/bin/chromium",
- "/usr/bin/chromium-browser",
- "/usr/bin/google-chrome",
- "/usr/bin/google-chrome-stable",
- ):
- if Path(binary).exists():
- options.binary_location = binary
- break
-
- options.add_argument("--headless=new")
- options.add_argument("--no-sandbox")
- options.add_argument("--disable-dev-shm-usage")
- options.add_argument("--disable-gpu")
- options.add_argument("--window-size=1920,1080")
- options.add_argument("--disable-notifications")
-
- return webdriver.Chrome(options=options)
-
-# SELENIUM - BOOKS TO SCRAPE
-
-def scrape_books(start_page=1, end_page=50):
-
- from selenium.webdriver.common.by import By
- from selenium.webdriver.support.ui import WebDriverWait
- from selenium.webdriver.support import expected_conditions as EC
-
- driver = create_driver()
- records = []
-
- try:
- progress = st.progress(0)
- total_pages = end_page - start_page + 1
-
- for position, page in enumerate(
- range(start_page, end_page + 1),
- start=1
- ):
- url = (
- f"https://books.toscrape.com/"
- f"catalogue/page-{page}.html"
- )
-
- driver.get(url)
-
- try:
- WebDriverWait(driver, 10).until(
- EC.presence_of_all_elements_located(
- (By.CSS_SELECTOR, "article.product_pod")
- )
- )
- except Exception:
- pass
-
- products = driver.find_elements(
- By.CSS_SELECTOR,
- "article.product_pod"
- )
-
- links = []
-
- for product in products:
- try:
- href = product.find_element(
- By.CSS_SELECTOR,
- "h3 a"
- ).get_attribute("href")
-
- if href:
- links.append(href)
- except Exception:
- continue
-
- for product_url in links:
-
- try:
- driver.get(product_url)
-
- def text(css, default=""):
- try:
- return driver.find_element(
- By.CSS_SELECTOR,
- css
- ).text.strip()
- except Exception:
- return default
-
- try:
- rating_class = driver.find_element(
- By.CSS_SELECTOR,
- "div.product_main p.star-rating"
- ).get_attribute("class")
- except Exception:
- rating_class = ""
-
- records.append({
- "page": page,
- "number_of_products": len(products),
- "title": text(
- "div.product_main h1"
- ),
- "price": text(
- "div.product_main p.price_color"
- ),
- "availability": text(
- "div.product_main p.instock.availability"
- ),
- "star_rating": rating_class,
- "reviews": text(
- "table.table-striped tr:nth-child(7) td"
- ),
- "description": text(
- "#product_description + p"
- ),
- "product_type": text(
- "ul.breadcrumb li:nth-child(3) a"
- ),
- "tax": text(
- "table.table-striped tr:nth-child(5) td"
- ),
- "url": product_url,
- })
-
- except Exception:
- continue
-
- progress.progress(position / total_pages)
-
- progress.empty()
-
- finally:
- driver.quit()
-
- return pd.DataFrame(records)
-
-# SELENIUM - GAARAAS
-
-def scrape_gaaraas(start_page=1, end_page=13):
-
- from selenium.webdriver.common.by import By
- from selenium.webdriver.support.ui import WebDriverWait
- from selenium.webdriver.support import expected_conditions as EC
-
- driver = create_driver()
- records = []
-
- try:
- progress = st.progress(0)
- total_pages = end_page - start_page + 1
-
- for position, page in enumerate(
- range(start_page, end_page + 1),
- start=1
- ):
- url = (
- "https://www.gaaraas.com/fr/users/dakar-auto"
- f"?page={page}"
- )
-
- driver.get(url)
-
- try:
- WebDriverWait(driver, 10).until(
- EC.presence_of_all_elements_located(
- (By.CSS_SELECTOR, "a.common-ad-card")
- )
- )
- except Exception:
- pass
-
- cards = driver.find_elements(
- By.CSS_SELECTOR,
- "a.common-ad-card"
- )
-
- links = []
-
- for card in cards:
- try:
- href = card.get_attribute("href")
-
- if href and href not in links:
- links.append(href)
- except Exception:
- continue
-
- for ad_url in links:
-
- try:
- driver.get(ad_url)
-
- def text(css, default=""):
- try:
- return driver.find_element(
- By.CSS_SELECTOR,
- css
- ).text.strip()
- except Exception:
- return default
-
- records.append({
- "page": page,
- "number_of_ads": len(cards),
- "marque_modele": text(
- ".ad-title-block h2"
- ),
- "annee": text(
- "div.prop:nth-of-type(4) span:nth-of-type(2)"
- ),
- "prix": text(
- ".back-wrapper .ad-price span.price-wrap"
- ),
- "kilometrage": text(
- "div.prop:nth-of-type(3) span:nth-of-type(2)"
- ),
- "type_boite_de_vitesse": text(
- "div.prop:nth-of-type(2) span:nth-of-type(2)"
- ),
- "region_de_vente": text(
- ".ad-title a span"
- ),
- "url": ad_url,
- })
-
- except Exception:
- continue
-
- progress.progress(position / total_pages)
-
- progress.empty()
-
- finally:
- driver.quit()
-
- return pd.DataFrame(records)
-
-# NETTOYAGE
-
-def clean_books(df):
-
- df = df.copy()
-
- for col in df.select_dtypes(
- include="object"
- ).columns:
- df[col] = df[col].astype(str).str.strip()
-
- if "price" in df.columns:
- df["price_numeric"] = pd.to_numeric(
- df["price"]
- .astype(str)
- .str.replace("£", "", regex=False)
- .str.replace(",", "", regex=False)
- .str.strip(),
- errors="coerce"
- )
-
- if "star_rating" in df.columns:
-
- rating_map = {
- "One": 1,
- "Two": 2,
- "Three": 3,
- "Four": 4,
- "Five": 5,
- }
-
- df["rating"] = (
- df["star_rating"]
- .astype(str)
- .str.extract(
- r"(One|Two|Three|Four|Five)",
- expand=False
- )
- .map(rating_map)
- )
-
- if "reviews" in df.columns:
- df["reviews_numeric"] = pd.to_numeric(
- df["reviews"],
- errors="coerce"
- )
-
- return df.drop_duplicates().reset_index(drop=True)
-
-
-def clean_gaaraas(df):
-
- df = df.copy()
-
- for col in df.select_dtypes(
- include="object"
- ).columns:
- df[col] = df[col].astype(str).str.strip()
-
- if "annee" in df.columns:
- df["annee_numeric"] = pd.to_numeric(
- df["annee"],
- errors="coerce"
- )
-
- if "prix" in df.columns:
- df["prix_numeric"] = pd.to_numeric(
- df["prix"]
- .astype(str)
- .str.replace("CFA", "", regex=False)
- .str.replace("FCFA", "", regex=False)
- .str.replace("\u00a0", "", regex=False)
- .str.replace(" ", "", regex=False)
- .str.replace(",", "", regex=False)
- .str.replace(".", "", regex=False)
- .str.strip(),
- errors="coerce"
- )
-
- if "kilometrage" in df.columns:
- df["kilometrage_numeric"] = pd.to_numeric(
- df["kilometrage"]
- .astype(str)
- .str.replace("km", "", case=False, regex=False)
- .str.replace("\u00a0", "", regex=False)
- .str.replace(" ", "", regex=False)
- .str.replace(",", "", regex=False)
- .str.replace(".", "", regex=False)
- .str.strip(),
- errors="coerce"
- )
-
- return df.drop_duplicates().reset_index(drop=True)
-
-
-# ============================================================
-# SESSION STATE
-# ============================================================
-
-if "books_selenium" not in st.session_state:
- st.session_state.books_selenium = None
-
-if "gaaraas_selenium" not in st.session_state:
- st.session_state.gaaraas_selenium = None
-
-# SIDEBAR
-
-st.sidebar.title(" Data Collection")
+def get\_connection():
+    return sqlite3.connect(DB\_PATH)
+
+
+def save\_to\_sql(df, table\_name):
+    if df is None or df.empty:
+        return
+
+    with get\_connection() as conn:
+        df.to\_sql(
+            table\_name,
+            conn,
+            if\_exists="replace",
+            index=False
+        )
+
+
+def get\_sql\_tables():
+    with get\_connection() as conn:
+        rows = conn.execute(
+            "SELECT name FROM sqlite\_master "
+            "WHERE type='table' ORDER BY name"
+        ).fetchall()
+
+    return [row[0] for row in rows]
+
+\# LECTURE CSV
+
+def read\_csv\_file(path):
+    if not path.exists():
+        return None
+
+    for encoding in ("utf-8-sig", "utf-8", "latin1"):
+        try:
+            return pd.read\_csv(
+                path,
+                encoding=encoding,
+                on\_bad\_lines="skip"
+            )
+        except Exception:
+            continue
+
+    return None
+
+\# SELENIUM
+
+def create\_driver():
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options
+
+    options = Options()
+
+    for binary in (
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/google-chrome",
+        "/usr/bin/google-chrome-stable",
+    ):
+        if Path(binary).exists():
+            options.binary\_location = binary
+            break
+
+    options.add\_argument("--headless=new")
+    options.add\_argument("--no-sandbox")
+    options.add\_argument("--disable-dev-shm-usage")
+    options.add\_argument("--disable-gpu")
+    options.add\_argument("--window-size=1920,1080")
+    options.add\_argument("--disable-notifications")
+
+    return webdriver.Chrome(options=options)
+
+\# SELENIUM - BOOKS TO SCRAPE
+
+def scrape\_books(start\_page=1, end\_page=50):
+
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected\_conditions as EC
+
+    driver = create\_driver()
+    records = []
+
+    try:
+        progress = st.progress(0)
+        total\_pages = end\_page - start\_page + 1
+
+        for position, page in enumerate(
+            range(start\_page, end\_page + 1),
+            start=1
+        ):
+            url = (
+                f"[https://books.toscrape.com/](https://books.toscrape.com/)"
+                f"catalogue/page-{page}.html"
+            )
+
+            driver.get(url)
+
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.presence\_of\_all\_elements\_located(
+                        (By.CSS\_SELECTOR, "article.product\_pod")
+                    )
+                )
+            except Exception:
+                pass
+
+            products = driver.find\_elements(
+                By.CSS\_SELECTOR,
+                "article.product\_pod"
+            )
+
+            links = []
+
+            for product in products:
+                try:
+                    href = product.find\_element(
+                        By.CSS\_SELECTOR,
+                        "h3 a"
+                    ).get\_attribute("href")
+
+                    if href:
+                        links.append(href)
+                except Exception:
+                    continue
+
+            for product\_url in links:
+
+                try:
+                    driver.get(product\_url)
+
+                    def text(css, default=""):
+                        try:
+                            return driver.find\_element(
+                                By.CSS\_SELECTOR,
+                                css
+                            ).text.strip()
+                        except Exception:
+                            return default
+
+                    try:
+                        rating\_class = driver.find\_element(
+                            By.CSS\_SELECTOR,
+                            "div.product\_main p.star-rating"
+                        ).get\_attribute("class")
+                    except Exception:
+                        rating\_class = ""
+
+                    records.append({
+                        "page": page,
+                        "number\_of\_products": len(products),
+                        "title": text(
+                            "div.product\_main h1"
+                        ),
+                        "price": text(
+                            "div.product\_main p.price\_color"
+                        ),
+                        "availability": text(
+                            "div.product\_main p.instock.availability"
+                        ),
+                        "star\_rating": rating\_class,
+                        "reviews": text(
+                            "table.table-striped tr\:nth-child(7) td"
+                        ),
+                        "description": text(
+                            "#product\_description + p"
+                        ),
+                        "product\_type": text(
+                            "ul.breadcrumb li\:nth-child(3) a"
+                        ),
+                        "tax": text(
+                            "table.table-striped tr\:nth-child(5) td"
+                        ),
+                        "url": product\_url,
+                    })
+
+                except Exception:
+                    continue
+
+            progress.progress(position / total\_pages)
+
+        progress.empty()
+
+    finally:
+        driver.quit()
+
+    return pd.DataFrame(records)
+
+\# SELENIUM - GAARAAS
+
+def scrape\_gaaraas(start\_page=1, end\_page=13):
+
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected\_conditions as EC
+
+    driver = create\_driver()
+    records = []
+
+    try:
+        progress = st.progress(0)
+        total\_pages = end\_page - start\_page + 1
+
+        for position, page in enumerate(
+            range(start\_page, end\_page + 1),
+            start=1
+        ):
+            url = (
+                "[https://www.gaaraas.com/fr/users/dakar-auto](https://www.gaaraas.com/fr/users/dakar-auto)"
+                f"?page={page}"
+            )
+
+            driver.get(url)
+
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.presence\_of\_all\_elements\_located(
+                        (By.CSS\_SELECTOR, "a.common-ad-card")
+                    )
+                )
+            except Exception:
+                pass
+
+            cards = driver.find\_elements(
+                By.CSS\_SELECTOR,
+                "a.common-ad-card"
+            )
+
+            links = []
+
+            for card in cards:
+                try:
+                    href = card.get\_attribute("href")
+
+                    if href and href not in links:
+                        links.append(href)
+                except Exception:
+                    continue
+
+            for ad\_url in links:
+
+                try:
+                    driver.get(ad\_url)
+
+                    def text(css, default=""):
+                        try:
+                            return driver.find\_element(
+                                By.CSS\_SELECTOR,
+                                css
+                            ).text.strip()
+                        except Exception:
+                            return default
+
+                    records.append({
+                        "page": page,
+                        "number\_of\_ads": len(cards),
+                        "marque\_modele": text(
+                            ".ad-title-block h2"
+                        ),
+                        "annee": text(
+                            "div.prop\:nth-of-type(4) span\:nth-of-type(2)"
+                        ),
+                        "prix": text(
+                            ".back-wrapper .ad-price span.price-wrap"
+                        ),
+                        "kilometrage": text(
+                            "div.prop\:nth-of-type(3) span\:nth-of-type(2)"
+                        ),
+                        "type\_boite\_de\_vitesse": text(
+                            "div.prop\:nth-of-type(2) span\:nth-of-type(2)"
+                        ),
+                        "region\_de\_vente": text(
+                            ".ad-title a span"
+                        ),
+                        "url": ad\_url,
+                    })
+
+                except Exception:
+                    continue
+
+            progress.progress(position / total\_pages)
+
+        progress.empty()
+
+    finally:
+        driver.quit()
+
+    return pd.DataFrame(records)
+
+\# NETTOYAGE
+
+def clean\_books(df):
+
+    df = df.copy()
+
+    for col in df.select\_dtypes(
+        include="object"
+    ).columns:
+        df[col] = df[col].astype(str).str.strip()
+
+    if "price" in df.columns:
+        df["price\_numeric"] = pd.to\_numeric(
+            df["price"]
+            .astype(str)
+            .str.replace("£", "", regex=False)
+            .str.replace(",", "", regex=False)
+            .str.strip(),
+            errors="coerce"
+        )
+
+    if "star\_rating" in df.columns:
+
+        rating\_map = {
+            "One": 1,
+            "Two": 2,
+            "Three": 3,
+            "Four": 4,
+            "Five": 5,
+        }
+
+        df["rating"] = (
+            df["star\_rating"]
+            .astype(str)
+            .str.extract(
+                r"(One|Two|Three|Four|Five)",
+                expand=False
+            )
+            .map(rating\_map)
+        )
+
+    if "reviews" in df.columns:
+        df["reviews\_numeric"] = pd.to\_numeric(
+            df["reviews"],
+            errors="coerce"
+        )
+
+    return df.drop\_duplicates().reset\_index(drop=True)
+
+
+def clean\_gaaraas(df):
+
+    df = df.copy()
+
+    for col in df.select\_dtypes(
+        include="object"
+    ).columns:
+        df[col] = df[col].astype(str).str.strip()
+
+    if "annee" in df.columns:
+        df["annee\_numeric"] = pd.to\_numeric(
+            df["annee"],
+            errors="coerce"
+        )
+
+    if "prix" in df.columns:
+        df["prix\_numeric"] = pd.to\_numeric(
+            df["prix"]
+            .astype(str)
+            .str.replace("CFA", "", regex=False)
+            .str.replace("FCFA", "", regex=False)
+            .str.replace("\u00a0", "", regex=False)
+            .str.replace(" ", "", regex=False)
+            .str.replace(",", "", regex=False)
+            .str.replace(".", "", regex=False)
+            .str.strip(),
+            errors="coerce"
+        )
+
+    if "kilometrage" in df.columns:
+        df["kilometrage\_numeric"] = pd.to\_numeric(
+            df["kilometrage"]
+            .astype(str)
+            .str.replace("km", "", case=False, regex=False)
+            .str.replace("\u00a0", "", regex=False)
+            .str.replace(" ", "", regex=False)
+            .str.replace(",", "", regex=False)
+            .str.replace(".", "", regex=False)
+            .str.strip(),
+            errors="coerce"
+        )
+
+    return df.drop\_duplicates().reset\_index(drop=True)
+
+
+\# ============================================================
+\# SESSION STATE
+\# ============================================================
+
+if "books\_selenium" not in st.session\_state:
+    st.session\_state.books\_selenium = None
+
+if "gaaraas\_selenium" not in st.session\_state:
+    st.session\_state.gaaraas\_selenium = None
+
+\# SIDEBAR
+
+st.sidebar.title("📊 Data Collection")
 
 menu = st.sidebar.radio(
- "Navigation",
- [
- "Accueil",
- "Scraping Selenium",
- "Données Web Scraper",
- "Dashboard",
- "Formulaires d'évaluation",
- "Base SQL",
- ]
+    "Navigation",
+    [
+        "Accueil",
+        "Scraping Selenium",
+        "Données Web Scraper",
+        "Dashboard",
+        "Formulaires d'évaluation",
+        "Base SQL",
+    ]
 )
 
 st.sidebar.markdown("---")
 st.sidebar.caption("Projet Examen Data Collection")
 
-# ACCUEIL
+\# ACCUEIL
 
 if menu == "Accueil":
 
- st.title(" Application Data Collection")
+    st.title("📊 Application Data Collection")
 
- st.markdown(
- """
- ### Objectif
+    st.markdown(
+        """
+        \### Objectif
 
- Cette application regroupe les différentes étapes du projet :
+        Cette application regroupe les différentes étapes du projet :
 
- - collecte avec **Selenium** sur plusieurs pages ;
- - téléchargement des données brutes **Web Scraper** ;
- - nettoyage des données Selenium ;
- - dashboard des données nettoyées ;
- - accès aux formulaires d'évaluation ;
- - stockage SQL.
- 
- """
- )
+        \- 🕷️ collecte avec \*\*Selenium\*\* sur plusieurs pages ;
+        \- 📥 téléchargement des données brutes \*\*Web Scraper\*\* ;
+        \- 🧹 nettoyage des données Selenium ;
+        \- 📊 dashboard des données nettoyées ;
+        \- 📝 accès aux formulaires d'évaluation ;
+        \- 🗄️ stockage SQL.
+        
+        """
+    )
 
- st.success("Application prête.")
+    st.success("Application prête.")
 
- c1, c2, c3 = st.columns(3)
+    c1, c2, c3 = st.columns(3)
 
- with c1:
- st.metric(
- "CSV Web Scraper",
- sum(
- path.exists()
- for path in [BOOKS_CSV, GAARAAS_CSV]
- )
- )
+    with c1:
+        st.metric(
+            "CSV Web Scraper",
+            sum(
+                path.exists()
+                for path in [BOOKS\_CSV, GAARAAS\_CSV]
+            )
+        )
 
- with c2:
- st.metric(
- "Sources Selenium",
- 2
- )
+    with c2:
+        st.metric(
+            "Sources Selenium",
+            2
+        )
 
- with c3:
- st.metric(
- "Formulaires",
- 2
- )
+    with c3:
+        st.metric(
+            "Formulaires",
+            2
+        )
 
-# SCRAPING SELENIUM
+\# SCRAPING SELENIUM
 
 elif menu == "Scraping Selenium":
 
- st.title(" Scraping Selenium")
+    st.title("🕷️ Scraping Selenium")
 
- tab_books, tab_gaaraas = st.tabs(
- [
- " Books to Scrape",
- " Gaaraas"
- ]
- )
+    tab\_books, tab\_gaaraas = st.tabs(
+        [
+            "📚 Books to Scrape",
+            "🚗 Gaaraas"
+        ]
+    )
 
- # BOOKS
+    \# BOOKS
 
- with tab_books:
+    with tab\_books:
 
- st.subheader(" Books to Scrape")
+        st.subheader("📚 Books to Scrape")
 
- col1, col2 = st.columns(2)
+        col1, col2 = st.columns(2)
 
- with col1:
- start_books = st.number_input(
- "Première page",
- min_value=1,
- max_value=50,
- value=1,
- step=1,
- key="start_books"
- )
+        with col1:
+            start\_books = st.number\_input(
+                "Première page",
+                min\_value=1,
+                max\_value=50,
+                value=1,
+                step=1,
+                key="start\_books"
+            )
 
- with col2:
- end_books = st.number_input(
- "Dernière page",
- min_value=1,
- max_value=50,
- value=50,
- step=1,
- key="end_books"
- )
+        with col2:
+            end\_books = st.number\_input(
+                "Dernière page",
+                min\_value=1,
+                max\_value=50,
+                value=50,
+                step=1,
+                key="end\_books"
+            )
 
- if st.button(
- " Lancer le scraping Books to Scrape",
- type="primary",
- use_container_width=True
- ):
+        if st.button(
+            "🚀 Lancer le scraping Books to Scrape",
+            type="primary",
+            use\_container\_width=True
+        ):
 
- if start_books > end_books:
+            if start\_books > end\_books:
 
- st.error(
- "La première page doit être inférieure "
- "ou égale à la dernière."
- )
+                st.error(
+                    "La première page doit être inférieure "
+                    "ou égale à la dernière."
+                )
 
- else:
+            else:
 
- try:
+                try:
 
- with st.spinner(
- "Scraping Books to Scrape..."
- ):
+                    with st.spinner(
+                        "Scraping Books to Scrape..."
+                    ):
 
- raw_books = scrape_books(
- start_books,
- end_books
- )
+                        raw\_books = scrape\_books(
+                            start\_books,
+                            end\_books
+                        )
 
- books = clean_books(
- raw_books
- )
+                        books = clean\_books(
+                            raw\_books
+                        )
 
- st.session_state.books_selenium = books
+                    st.session\_state.books\_selenium = books
 
- save_to_sql(
- books,
- "selenium_books"
- )
+                    save\_to\_sql(
+                        books,
+                        "selenium\_books"
+                    )
 
- st.success(
- f"{len(books)} livres collectés."
- )
+                    st.success(
+                        f"{len(books)} livres collectés."
+                    )
 
- except Exception as exc:
+                except Exception as exc:
 
- st.error(
- f"Erreur Selenium : {exc}"
- )
+                    st.error(
+                        f"Erreur Selenium : {exc}"
+                    )
 
- if st.session_state.books_selenium is not None:
+        if st.session\_state.books\_selenium is not None:
 
- books = st.session_state.books_selenium
+            books = st.session\_state.books\_selenium
 
- st.metric(
- "Livres collectés",
- len(books)
- )
+            st.metric(
+                "Livres collectés",
+                len(books)
+            )
 
- st.dataframe(
- books,
- use_container_width=True,
- height=450
- )
+            st.dataframe(
+                books,
+                use\_container\_width=True,
+                height=450
+            )
 
- st.download_button(
- " Télécharger les données nettoyées",
- books.to_csv(index=False).encode("utf-8"),
- "books_selenium_clean.csv",
- "text/csv",
- use_container_width=True
- )
+            st.download\_button(
+                "⬇️ Télécharger les données nettoyées",
+                books.to\_csv(index=False).encode("utf-8"),
+                "books\_selenium\_clean.csv",
+                "text/csv",
+                use\_container\_width=True
+            )
 
- # GAARAAS
+    \# GAARAAS
 
- with tab_gaaraas:
+    with tab\_gaaraas:
 
- st.subheader(" Gaaraas")
+        st.subheader("🚗 Gaaraas")
 
- col1, col2 = st.columns(2)
+        col1, col2 = st.columns(2)
 
- with col1:
- start_gaaraas = st.number_input(
- "Première page",
- min_value=1,
- max_value=13,
- value=1,
- step=1,
- key="start_gaaraas"
- )
+        with col1:
+            start\_gaaraas = st.number\_input(
+                "Première page",
+                min\_value=1,
+                max\_value=13,
+                value=1,
+                step=1,
+                key="start\_gaaraas"
+            )
 
- with col2:
- end_gaaraas = st.number_input(
- "Dernière page",
- min_value=1,
- max_value=13,
- value=13,
- step=1,
- key="end_gaaraas"
- )
+        with col2:
+            end\_gaaraas = st.number\_input(
+                "Dernière page",
+                min\_value=1,
+                max\_value=13,
+                value=13,
+                step=1,
+                key="end\_gaaraas"
+            )
 
- if st.button(
- " Lancer le scraping Gaaraas",
- type="primary",
- use_container_width=True
- ):
+        if st.button(
+            "🚀 Lancer le scraping Gaaraas",
+            type="primary",
+            use\_container\_width=True
+        ):
 
- if start_gaaraas > end_gaaraas:
+            if start\_gaaraas > end\_gaaraas:
 
- st.error(
- "La première page doit être inférieure "
- "ou égale à la dernière."
- )
+                st.error(
+                    "La première page doit être inférieure "
+                    "ou égale à la dernière."
+                )
 
- else:
+            else:
 
- try:
+                try:
 
- with st.spinner(
- "Scraping Gaaraas..."
- ):
+                    with st.spinner(
+                        "Scraping Gaaraas..."
+                    ):
 
- raw_gaaraas = scrape_gaaraas(
- start_gaaraas,
- end_gaaraas
- )
+                        raw\_gaaraas = scrape\_gaaraas(
+                            start\_gaaraas,
+                            end\_gaaraas
+                        )
 
- gaaraas = clean_gaaraas(
- raw_gaaraas
- )
+                        gaaraas = clean\_gaaraas(
+                            raw\_gaaraas
+                        )
 
- st.session_state.gaaraas_selenium = gaaraas
+                    st.session\_state.gaaraas\_selenium = gaaraas
 
- save_to_sql(
- gaaraas,
- "selenium_gaaraas"
- )
+                    save\_to\_sql(
+                        gaaraas,
+                        "selenium\_gaaraas"
+                    )
 
- st.success(
- f"{len(gaaraas)} annonces collectées."
- )
+                    st.success(
+                        f"{len(gaaraas)} annonces collectées."
+                    )
 
- except Exception as exc:
+                except Exception as exc:
 
- st.error(
- f"Erreur Selenium : {exc}"
- )
+                    st.error(
+                        f"Erreur Selenium : {exc}"
+                    )
 
- if st.session_state.gaaraas_selenium is not None:
+        if st.session\_state.gaaraas\_selenium is not None:
 
- gaaraas = st.session_state.gaaraas_selenium
+            gaaraas = st.session\_state.gaaraas\_selenium
 
- st.metric(
- "Annonces collectées",
- len(gaaraas)
- )
+            st.metric(
+                "Annonces collectées",
+                len(gaaraas)
+            )
 
- st.dataframe(
- gaaraas,
- use_container_width=True,
- height=450
- )
+            st.dataframe(
+                gaaraas,
+                use\_container\_width=True,
+                height=450
+            )
 
- st.download_button(
- " Télécharger les données nettoyées",
- gaaraas.to_csv(index=False).encode("utf-8"),
- "gaaraas_selenium_clean.csv",
- "text/csv",
- use_container_width=True
- )
+            st.download\_button(
+                "⬇️ Télécharger les données nettoyées",
+                gaaraas.to\_csv(index=False).encode("utf-8"),
+                "gaaraas\_selenium\_clean.csv",
+                "text/csv",
+                use\_container\_width=True
+            )
 
-# DONNEES WEB SCRAPER
+\# DONNEES WEB SCRAPER
 
 elif menu == "Données Web Scraper":
 
- st.title(" Données brutes Web Scraper")
+    st.title("📥 Données brutes Web Scraper")
 
- files = [
- BOOKS_CSV,
- GAARAAS_CSV
- ]
+    files = [
+        BOOKS\_CSV,
+        GAARAAS\_CSV
+    ]
 
- found_files = [
- path for path in files
- if path.exists()
- ]
+    found\_files = [
+        path for path in files
+        if path.exists()
+    ]
 
- if not found_files:
+    if not found\_files:
 
- st.warning(
- "Aucun des deux fichiers CSV n'a été trouvé."
- )
+        st.warning(
+            "Aucun des deux fichiers CSV n'a été trouvé."
+        )
 
- for path in found_files:
+    for path in found\_files:
 
- st.subheader(
- f" {path.name}"
- )
+        st.subheader(
+            f"📄 {path.name}"
+        )
 
- df = read_csv_file(path)
+        df = read\_csv\_file(path)
 
- if df is None:
+        if df is None:
 
- st.error(
- f"Impossible de lire {path.name}."
- )
+            st.error(
+                f"Impossible de lire {path.name}."
+            )
 
- continue
+            continue
 
- c1, c2 = st.columns(2)
+        c1, c2 = st.columns(2)
 
- with c1:
- st.metric(
- "Lignes",
- df.shape[0]
- )
+        with c1:
+            st.metric(
+                "Lignes",
+                df.shape[0]
+            )
 
- with c2:
- st.metric(
- "Colonnes",
- df.shape[1]
- )
+        with c2:
+            st.metric(
+                "Colonnes",
+                df.shape[1]
+            )
 
- st.dataframe(
- df.head(100),
- use_container_width=True,
- height=350
- )
+        st.dataframe(
+            df.head(100),
+            use\_container\_width=True,
+            height=350
+        )
 
- st.download_button(
- f" Télécharger {path.name}",
- df.to_csv(index=False).encode("utf-8"),
- path.name,
- "text/csv",
- key=f"download_{path.name}",
- use_container_width=True
- )
+        st.download\_button(
+            f"⬇️ Télécharger {path.name}",
+            df.to\_csv(index=False).encode("utf-8"),
+            path.name,
+            "text/csv",
+            key=f"download\_{path.name}",
+            use\_container\_width=True
+        )
 
- if path.name == BOOKS_CSV.name:
+        if path.name == BOOKS\_CSV.name:
 
- save_to_sql(
- df,
- "webscraper_books"
- )
+            save\_to\_sql(
+                df,
+                "webscraper\_books"
+            )
 
- elif path.name == GAARAAS_CSV.name:
+        elif path.name == GAARAAS\_CSV.name:
 
- save_to_sql(
- df,
- "webscraper_gaaraas"
- )
+            save\_to\_sql(
+                df,
+                "webscraper\_gaaraas"
+            )
 
-# DASHBOARD
+\# DASHBOARD
 
 elif menu == "Dashboard":
 
- st.title(
- " Dashboard des données Selenium nettoyées"
- )
+    st.title(
+        "📊 Dashboard des données Selenium nettoyées"
+    )
 
- books = st.session_state.books_selenium
- gaaraas = st.session_state.gaaraas_selenium
+    books = st.session\_state.books\_selenium
+    gaaraas = st.session\_state.gaaraas\_selenium
 
- if books is None and gaaraas is None:
+    if books is None and gaaraas is None:
 
- st.warning(
- "Aucune donnée Selenium disponible. "
- "Lancez le scraping dans la section Selenium."
- )
+        st.warning(
+            "Aucune donnée Selenium disponible. "
+            "Lancez le scraping dans la section Selenium."
+        )
 
- # BOOKS
+    \# BOOKS
 
- if books is not None:
+    if books is not None:
 
- st.header(" Books to Scrape")
+        st.header("📚 Books to Scrape")
 
- c1, c2, c3, c4 = st.columns(4)
+        c1, c2, c3, c4 = st.columns(4)
 
- with c1:
- st.metric(
- "Livres",
- len(books)
- )
+        with c1:
+            st.metric(
+                "Livres",
+                len(books)
+            )
 
- with c2:
+        with c2:
 
- if "price_numeric" in books:
+            if "price\_numeric" in books:
 
- value = books[
- "price_numeric"
- ].mean()
+                value = books[
+                    "price\_numeric"
+                ].mean()
 
- st.metric(
- "Prix moyen",
- f"£{value:.2f}"
- if pd.notna(value)
- else "N/A"
- )
+                st.metric(
+                    "Prix moyen",
+                    f"£{value:.2f}"
+                    if pd.notna(value)
+                    else "N/A"
+                )
 
- else:
+            else:
 
- st.metric(
- "Prix moyen",
- "N/A"
- )
+                st.metric(
+                    "Prix moyen",
+                    "N/A"
+                )
 
- with c3:
+        with c3:
 
- if "rating" in books:
+            if "rating" in books:
 
- value = books[
- "rating"
- ].mean()
+                value = books[
+                    "rating"
+                ].mean()
 
- st.metric(
- "Note moyenne",
- f"{value:.2f}/5"
- if pd.notna(value)
- else "N/A"
- )
+                st.metric(
+                    "Note moyenne",
+                    f"{value:.2f}/5"
+                    if pd.notna(value)
+                    else "N/A"
+                )
 
- else:
+            else:
 
- st.metric(
- "Note moyenne",
- "N/A"
- )
+                st.metric(
+                    "Note moyenne",
+                    "N/A"
+                )
 
- with c4:
+        with c4:
 
- if "product_type" in books:
+            if "product\_type" in books:
 
- st.metric(
- "Types de produits",
- books[
- "product_type"
- ].nunique()
- )
+                st.metric(
+                    "Types de produits",
+                    books[
+                        "product\_type"
+                    ].nunique()
+                )
 
- else:
+            else:
 
- st.metric(
- "Types de produits",
- 0
- )
+                st.metric(
+                    "Types de produits",
+                    0
+                )
 
- left, right = st.columns(2)
+        left, right = st.columns(2)
 
- with left:
+        with left:
 
- if "product_type" in books:
+            if "product\_type" in books:
 
- st.subheader(
- "Top catégories"
- )
+                st.subheader(
+                    "Top catégories"
+                )
 
- st.bar_chart(
- books[
- "product_type"
- ]
- .value_counts()
- .head(10)
- )
+                st.bar\_chart(
+                    books[
+                        "product\_type"
+                    ]
+                    .value\_counts()
+                    .head(10)
+                )
 
- with right:
+        with right:
 
- if "rating" in books:
+            if "rating" in books:
 
- st.subheader(
- "Répartition des notes"
- )
+                st.subheader(
+                    "Répartition des notes"
+                )
 
- st.bar_chart(
- books[
- "rating"
- ]
- .value_counts()
- .sort_index()
- )
+                st.bar\_chart(
+                    books[
+                        "rating"
+                    ]
+                    .value\_counts()
+                    .sort\_index()
+                )
 
- with st.expander(
- "Voir les données Books nettoyées"
- ):
+        with st.expander(
+            "Voir les données Books nettoyées"
+        ):
 
- st.dataframe(
- books,
- use_container_width=True
- )
+            st.dataframe(
+                books,
+                use\_container\_width=True
+            )
 
- # GAARAAS
+    \# GAARAAS
 
- if gaaraas is not None:
+    if gaaraas is not None:
 
- st.divider()
+        st.divider()
 
- st.header(" Gaaraas")
+        st.header("🚗 Gaaraas")
 
- c1, c2, c3, c4 = st.columns(4)
+        c1, c2, c3, c4 = st.columns(4)
 
- with c1:
+        with c1:
 
- st.metric(
- "Annonces",
- len(gaaraas)
- )
+            st.metric(
+                "Annonces",
+                len(gaaraas)
+            )
 
- with c2:
+        with c2:
 
- if "prix_numeric" in gaaraas:
+            if "prix\_numeric" in gaaraas:
 
- value = gaaraas[
- "prix_numeric"
- ].mean()
+                value = gaaraas[
+                    "prix\_numeric"
+                ].mean()
 
- st.metric(
- "Prix moyen",
- f"{value:,.0f} FCFA"
- if pd.notna(value)
- else "N/A"
- )
+                st.metric(
+                    "Prix moyen",
+                    f"{value:,.0f} FCFA"
+                    if pd.notna(value)
+                    else "N/A"
+                )
 
- else:
+            else:
 
- st.metric(
- "Prix moyen",
- "N/A"
- )
+                st.metric(
+                    "Prix moyen",
+                    "N/A"
+                )
 
- with c3:
+        with c3:
 
- if "annee_numeric" in gaaraas:
+            if "annee\_numeric" in gaaraas:
 
- value = gaaraas[
- "annee_numeric"
- ].mean()
+                value = gaaraas[
+                    "annee\_numeric"
+                ].mean()
 
- st.metric(
- "Année moyenne",
- f"{value:.0f}"
- if pd.notna(value)
- else "N/A"
- )
+                st.metric(
+                    "Année moyenne",
+                    f"{value:.0f}"
+                    if pd.notna(value)
+                    else "N/A"
+                )
 
- else:
+            else:
 
- st.metric(
- "Année moyenne",
- "N/A"
- )
+                st.metric(
+                    "Année moyenne",
+                    "N/A"
+                )
 
- with c4:
+        with c4:
 
- if "kilometrage_numeric" in gaaraas:
+            if "kilometrage\_numeric" in gaaraas:
 
- value = gaaraas[
- "kilometrage_numeric"
- ].mean()
+                value = gaaraas[
+                    "kilometrage\_numeric"
+                ].mean()
 
- st.metric(
- "Kilométrage moyen",
- f"{value:,.0f} km"
- if pd.notna(value)
- else "N/A"
- )
+                st.metric(
+                    "Kilométrage moyen",
+                    f"{value:,.0f} km"
+                    if pd.notna(value)
+                    else "N/A"
+                )
 
- else:
+            else:
 
- st.metric(
- "Kilométrage moyen",
- "N/A"
- )
+                st.metric(
+                    "Kilométrage moyen",
+                    "N/A"
+                )
 
- left, right = st.columns(2)
+        left, right = st.columns(2)
 
- with left:
+        with left:
 
- if "marque_modele" in gaaraas:
+            if "marque\_modele" in gaaraas:
 
- st.subheader(
- "Top marques / modèles"
- )
+                st.subheader(
+                    "Top marques / modèles"
+                )
 
- st.bar_chart(
- gaaraas[
- "marque_modele"
- ]
- .value_counts()
- .head(10)
- )
+                st.bar\_chart(
+                    gaaraas[
+                        "marque\_modele"
+                    ]
+                    .value\_counts()
+                    .head(10)
+                )
 
- with right:
+        with right:
 
- if "annee_numeric" in gaaraas:
+            if "annee\_numeric" in gaaraas:
 
- st.subheader(
- "Répartition par année"
- )
+                st.subheader(
+                    "Répartition par année"
+                )
 
- st.bar_chart(
- gaaraas[
- "annee_numeric"
- ]
- .value_counts()
- .sort_index()
- )
+                st.bar\_chart(
+                    gaaraas[
+                        "annee\_numeric"
+                    ]
+                    .value\_counts()
+                    .sort\_index()
+                )
 
- with st.expander(
- "Voir les données Gaaraas nettoyées"
- ):
+        with st.expander(
+            "Voir les données Gaaraas nettoyées"
+        ):
 
- st.dataframe(
- gaaraas,
- use_container_width=True
- )
+            st.dataframe(
+                gaaraas,
+                use\_container\_width=True
+            )
 
-# FORMULAIRES D'EVALUATION
+\# FORMULAIRES D'EVALUATION
 
 elif menu == "Formulaires d'évaluation":
 
- st.title(" Formulaires d'évaluation")
+    st.title("📝 Formulaires d'évaluation")
 
- st.subheader(" Google Forms")
+    st.subheader("📋 Google Forms")
 
- st.link_button(
- " Ouvrir le formulaire Google Forms",
- GOOGLE_FORM_URL,
- use_container_width=True
- )
+    st.link\_button(
+        "📝 Ouvrir le formulaire Google Forms",
+        GOOGLE\_FORM\_URL,
+        use\_container\_width=True
+    )
 
- st.divider()
+    st.divider()
 
- st.subheader(" KoboToolbox")
+    st.subheader("📋 KoboToolbox")
 
- st.link_button(
- " Ouvrir le formulaire KoboToolbox",
- KOBO_FORM_URL,
- use_container_width=True
- )
+    st.link\_button(
+        "📝 Ouvrir le formulaire KoboToolbox",
+        KOBO\_FORM\_URL,
+        use\_container\_width=True
+    )
 
-# BASE SQL
+\# BASE SQL
 
 elif menu == "Base SQL":
 
- st.title(" Base de données SQL")
+    st.title("🗄️ Base de données SQL")
 
- st.write(
- """
- Les données collectées sont stockées dans une base SQLite.
+    st.write(
+        """
+        Les données collectées sont stockées dans une base SQLite.
 
- Les tables utilisées sont :
+        Les tables utilisées sont :
 
- - `selenium_books`
- - `selenium_gaaraas`
- - `webscraper_books`
- - `webscraper_gaaraas`
- """
- )
+        \- \`selenium\_books\`
+        \- \`selenium\_gaaraas\`
+        \- \`webscraper\_books\`
+        \- \`webscraper\_gaaraas\`
+        """
+    )
 
- tables = get_sql_tables()
+    tables = get\_sql\_tables()
 
- if not tables:
+    if not tables:
 
- st.info(
- "La base SQL est actuellement vide. "
- "Lancez une collecte ou consultez les données "
- "Web Scraper pour l'alimenter."
- )
+        st.info(
+            "La base SQL est actuellement vide. "
+            "Lancez une collecte ou consultez les données "
+            "Web Scraper pour l'alimenter."
+        )
 
- else:
+    else:
 
- st.success(
- f"{len(tables)} table(s) disponible(s)."
- )
+        st.success(
+            f"{len(tables)} table(s) disponible(s)."
+        )
 
- for table in tables:
+        for table in tables:
 
- with st.expander(
- f" {table}"
- ):
+            with st.expander(
+                f"📁 {table}"
+            ):
 
- try:
+                try:
 
- with get_connection() as conn:
+                    with get\_connection() as conn:
 
- df = pd.read_sql_query(
- f'SELECT * FROM "{table}"',
- conn
- )
+                        df = pd.read\_sql\_query(
+                            f'SELECT \* FROM "{table}"',
+                            conn
+                        )
 
- st.write(
- f"{len(df)} lignes × "
- f"{len(df.columns)} colonnes"
- )
+                    st.write(
+                        f"{len(df)} lignes × "
+                        f"{len(df.columns)} colonnes"
+                    )
 
- st.dataframe(
- df.head(100),
- use_container_width=True
- )
+                    st.dataframe(
+                        df.head(100),
+                        use\_container\_width=True
+                    )
 
- st.download_button(
- " Télécharger la table",
- df.to_csv(
- index=False
- ).encode("utf-8"),
- f"{table}.csv",
- "text/csv",
- key=f"sql_{table}"
- )
+                    st.download\_button(
+                        "⬇️ Télécharger la table",
+                        df.to\_csv(
+                            index=False
+                        ).encode("utf-8"),
+                        f"{table}.csv",
+                        "text/csv",
+                        key=f"sql\_{table}"
+                    )
 
- except Exception as exc:
+                except Exception as exc:
 
- st.error(
- f"Erreur SQL : {exc}"
- )
+                    st.error(
+                        f"Erreur SQL : {exc}"
+                    )
 
- st.divider()
+    st.divider()
 
- st.subheader(
- "Structure des sources"
- )
+    st.subheader(
+        "Structure des sources"
+    )
 
- schema = pd.DataFrame({
- "Source": [
- "Selenium Books to Scrape",
- "Selenium Gaaraas",
- "Web Scraper Books to Scrape",
- "Web Scraper Gaaraas",
- ],
- "Table SQL": [
- "selenium_books",
- "selenium_gaaraas",
- "webscraper_books",
- "webscraper_gaaraas",
- ],
- })
+    schema = pd.DataFrame({
+        "Source": [
+            "Selenium Books to Scrape",
+            "Selenium Gaaraas",
+            "Web Scraper Books to Scrape",
+            "Web Scraper Gaaraas",
+        ],
+        "Table SQL": [
+            "selenium\_books",
+            "selenium\_gaaraas",
+            "webscraper\_books",
+            "webscraper\_gaaraas",
+        ],
+    })
 
- st.dataframe(
- schema,
- use_container_width=True,
- hide_index=True
- )
+    st.dataframe(
+        schema,
+        use\_container\_width=True,
+        hide\_index=True
+    ) supprime les emojis
