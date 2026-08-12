@@ -1060,11 +1060,6 @@ elif menu == "Formulaires d'évaluation":
 
     st.title("📝 Formulaires d'évaluation")
 
-    st.write(
-        "Les deux formulaires sont accessibles directement "
-        "depuis l'application."
-    )
-
     st.subheader("📋 Google Forms")
 
     st.link_button(
