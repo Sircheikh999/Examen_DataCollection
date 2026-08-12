@@ -711,11 +711,6 @@ elif menu == "Données Web Scraper":
 
     st.title("📥 Données brutes Web Scraper")
 
-    st.info(
-        "Seuls les deux fichiers CSV finaux sont utilisés. "
-        "Les fichiers JSON sont ignorés."
-    )
-
     files = [
         BOOKS_CSV,
         GAARAAS_CSV
