@@ -8,7 +8,7 @@ import streamlit as st
 # CONFIGURATION
 
 st.set_page_config(
-    page_title="Data Collection - Examen",
+    page_title="Scraping App - CTS",
     layout="wide",
 )
 
@@ -19,18 +19,12 @@ FORM_DIR = BASE_DIR / "Formulaire"
 
 DB_PATH = BASE_DIR / "data_collection.db"
 
-# Fichiers finaux utilisés.
+# Fichiers utilisés
 BOOKS_CSV = WEB_SCRAPER_DIR / "Source_1_Books_to_Scrape.csv"
 GAARAAS_CSV = WEB_SCRAPER_DIR / "Source_2_Gaaraas).csv"
 
-# Les JSON du dossier Web_Scraper sont volontairement ignorés.
-
-# Liens directs des formulaires.
-GOOGLE_FORM_URL = (
-    "https://docs.google.com/forms/d/e/"
-    "1FAIpQLSc7F8m3eBJkCqpOUa4pTQX0zyIov_4LWXRYOV3XKbmi0vJJoQ/"
-    "viewform?usp=publish-editor"
-)
+# Liens des formulaires
+GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSc7F8m3eBJkCqpOUa4pTQX0zyIov_4LWXRYOV3XKbmi0vJJoQ/viewform?usp=publish-editor"
 KOBO_FORM_URL = "https://ee.kobotoolbox.org/i/1zbGqqaq"
 
 
