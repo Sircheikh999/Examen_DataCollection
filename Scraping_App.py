@@ -383,11 +383,7 @@ if menu == "Accueil":
         - stockage SQL.
         """
     )
-
-    st.success("Application prête.")
-
     c1, c2, c3 = st.columns(3)
-
     with c1:
         st.metric(
             "CSV Web Scraper",
@@ -396,13 +392,11 @@ if menu == "Accueil":
                 for path in [BOOKS_CSV, GAARAAS_CSV]
             )
         )
-
     with c2:
         st.metric(
             "Sources Selenium",
             2
         )
-
     with c3:
         st.metric(
             "Formulaires",
@@ -412,7 +406,6 @@ if menu == "Accueil":
 # SCRAPING SELENIUM
 
 elif menu == "Scraping Selenium":
-
     st.title("Scraping Selenium")
 
     tab_books, tab_gaaraas = st.tabs(
@@ -425,11 +418,8 @@ elif menu == "Scraping Selenium":
     # BOOKS
 
     with tab_books:
-
         st.subheader("Books to Scrape")
-
         col1, col2 = st.columns(2)
-
         with col1:
             start_books = st.number_input(
                 "Première page",
@@ -439,7 +429,6 @@ elif menu == "Scraping Selenium":
                 step=1,
                 key="start_books"
             )
-
         with col2:
             end_books = st.number_input(
                 "Dernière page",
@@ -449,69 +438,51 @@ elif menu == "Scraping Selenium":
                 step=1,
                 key="end_books"
             )
-
         if st.button(
             "Lancer le scraping Books to Scrape",
             type="primary",
             use_container_width=True
         ):
-
             if start_books > end_books:
-
                 st.error(
                     "La première page doit être inférieure "
                     "ou égale à la dernière."
                 )
-
             else:
-
                 try:
-
                     with st.spinner(
                         "Scraping Books to Scrape..."
                     ):
-
                         raw_books = scrape_books(
                             start_books,
                             end_books
                         )
-
                         books = clean_books(
                             raw_books
                         )
-
                     st.session_state.books_selenium = books
-
                     save_to_sql(
                         books,
                         "selenium_books"
                     )
-
                     st.success(
                         f"{len(books)} livres collectés."
                     )
-
                 except Exception as exc:
-
                     st.error(
                         f"Erreur Selenium : {exc}"
                     )
-
         if st.session_state.books_selenium is not None:
-
             books = st.session_state.books_selenium
-
             st.metric(
                 "Livres collectés",
                 len(books)
             )
-
             st.dataframe(
                 books,
                 use_container_width=True,
                 height=450
             )
-
             st.download_button(
                 "Télécharger les données nettoyées",
                 books.to_csv(index=False).encode("utf-8"),
@@ -520,15 +491,11 @@ elif menu == "Scraping Selenium":
                 use_container_width=True
             )
 
-    
     # GAARAAS
   
     with tab_gaaraas:
-
         st.subheader("Gaaraas")
-
         col1, col2 = st.columns(2)
-
         with col1:
             start_gaaraas = st.number_input(
                 "Première page",
@@ -538,7 +505,6 @@ elif menu == "Scraping Selenium":
                 step=1,
                 key="start_gaaraas"
             )
-
         with col2:
             end_gaaraas = st.number_input(
                 "Dernière page",
@@ -548,69 +514,51 @@ elif menu == "Scraping Selenium":
                 step=1,
                 key="end_gaaraas"
             )
-
         if st.button(
             "Lancer le scraping Gaaraas",
             type="primary",
             use_container_width=True
         ):
-
             if start_gaaraas > end_gaaraas:
-
                 st.error(
                     "La première page doit être inférieure "
                     "ou égale à la dernière."
                 )
-
             else:
-
                 try:
-
                     with st.spinner(
                         "Scraping Gaaraas..."
                     ):
-
                         raw_gaaraas = scrape_gaaraas(
                             start_gaaraas,
                             end_gaaraas
                         )
-
                         gaaraas = clean_gaaraas(
                             raw_gaaraas
                         )
-
                     st.session_state.gaaraas_selenium = gaaraas
-
                     save_to_sql(
                         gaaraas,
                         "selenium_gaaraas"
                     )
-
                     st.success(
                         f"{len(gaaraas)} annonces collectées."
                     )
-
                 except Exception as exc:
-
                     st.error(
                         f"Erreur Selenium : {exc}"
                     )
-
         if st.session_state.gaaraas_selenium is not None:
-
             gaaraas = st.session_state.gaaraas_selenium
-
             st.metric(
                 "Annonces collectées",
                 len(gaaraas)
             )
-
             st.dataframe(
                 gaaraas,
                 use_container_width=True,
                 height=450
             )
-
             st.download_button(
                 "Télécharger les données nettoyées",
                 gaaraas.to_csv(index=False).encode("utf-8"),
@@ -622,66 +570,45 @@ elif menu == "Scraping Selenium":
 # DONNEES WEB SCRAPER
 
 elif menu == "Données Web Scraper":
-
     st.title("Données brutes Web Scraper")
-
-    st.info(
-        "Seuls les deux fichiers CSV finaux sont utilisés. "
-        "Les fichiers JSON sont ignorés."
-    )
-
     files = [
         BOOKS_CSV,
         GAARAAS_CSV
     ]
-
     found_files = [
         path for path in files
         if path.exists()
     ]
-
     if not found_files:
-
         st.warning(
             "Aucun des deux fichiers CSV n'a été trouvé."
         )
-
     for path in found_files:
-
         st.subheader(
             f"{path.name}"
         )
-
         df = read_csv_file(path)
-
         if df is None:
-
             st.error(
                 f"Impossible de lire {path.name}."
             )
-
             continue
-
         c1, c2 = st.columns(2)
-
         with c1:
             st.metric(
                 "Lignes",
                 df.shape[0]
             )
-
         with c2:
             st.metric(
                 "Colonnes",
                 df.shape[1]
             )
-
         st.dataframe(
             df.head(100),
             use_container_width=True,
             height=350
         )
-
         st.download_button(
             f"Télécharger {path.name}",
             df.to_csv(index=False).encode("utf-8"),
@@ -690,16 +617,12 @@ elif menu == "Données Web Scraper":
             key=f"download_{path.name}",
             use_container_width=True
         )
-
         if path.name == BOOKS_CSV.name:
-
             save_to_sql(
                 df,
                 "webscraper_books"
             )
-
         elif path.name == GAARAAS_CSV.name:
-
             save_to_sql(
                 df,
                 "webscraper_gaaraas"
@@ -708,107 +631,77 @@ elif menu == "Données Web Scraper":
 # DASHBOARD
 
 elif menu == "Dashboard":
-
     st.title(
         "Dashboard des données Selenium nettoyées"
     )
-
     books = st.session_state.books_selenium
     gaaraas = st.session_state.gaaraas_selenium
-
     if books is None and gaaraas is None:
-
         st.warning(
             "Aucune donnée Selenium disponible. "
             "Lancez le scraping dans la section Selenium."
         )
-
     # BOOKS
-
     if books is not None:
-
         st.header("Books to Scrape")
-
         c1, c2, c3, c4 = st.columns(4)
-
         with c1:
             st.metric(
                 "Livres",
                 len(books)
             )
-
         with c2:
-
             if "price_numeric" in books:
-
                 value = books[
                     "price_numeric"
                 ].mean()
-
                 st.metric(
                     "Prix moyen",
                     f"£{value:.2f}"
                     if pd.notna(value)
                     else "N/A"
                 )
-
             else:
-
                 st.metric(
                     "Prix moyen",
                     "N/A"
                 )
-
         with c3:
-
             if "rating" in books:
-
                 value = books[
                     "rating"
                 ].mean()
-
                 st.metric(
                     "Note moyenne",
                     f"{value:.2f}/5"
                     if pd.notna(value)
                     else "N/A"
                 )
-
             else:
-
                 st.metric(
                     "Note moyenne",
                     "N/A"
                 )
-
         with c4:
 
             if "product_type" in books:
-
                 st.metric(
                     "Types de produits",
                     books[
                         "product_type"
                     ].nunique()
                 )
-
             else:
-
                 st.metric(
                     "Types de produits",
                     0
                 )
-
         left, right = st.columns(2)
-
         with left:
-
             if "product_type" in books:
-
                 st.subheader(
                     "Top catégories"
                 )
-
                 st.bar_chart(
                     books[
                         "product_type"
@@ -816,15 +709,11 @@ elif menu == "Dashboard":
                     .value_counts()
                     .head(10)
                 )
-
         with right:
-
             if "rating" in books:
-
                 st.subheader(
                     "Répartition des notes"
                 )
-
                 st.bar_chart(
                     books[
                         "rating"
@@ -832,11 +721,9 @@ elif menu == "Dashboard":
                     .value_counts()
                     .sort_index()
                 )
-
         with st.expander(
             "Voir les données Books nettoyées"
         ):
-
             st.dataframe(
                 books,
                 use_container_width=True
@@ -845,24 +732,16 @@ elif menu == "Dashboard":
     # GAARAAS
 
     if gaaraas is not None:
-
         st.divider()
-
         st.header("Gaaraas")
-
         c1, c2, c3, c4 = st.columns(4)
-
         with c1:
-
             st.metric(
                 "Annonces",
                 len(gaaraas)
             )
-
         with c2:
-
             if "prix_numeric" in gaaraas:
-
                 value = gaaraas[
                     "prix_numeric"
                 ].mean()
@@ -873,68 +752,49 @@ elif menu == "Dashboard":
                     if pd.notna(value)
                     else "N/A"
                 )
-
             else:
-
                 st.metric(
                     "Prix moyen",
                     "N/A"
                 )
-
         with c3:
-
             if "annee_numeric" in gaaraas:
-
                 value = gaaraas[
                     "annee_numeric"
                 ].mean()
-
                 st.metric(
                     "Année moyenne",
                     f"{value:.0f}"
                     if pd.notna(value)
                     else "N/A"
                 )
-
             else:
-
                 st.metric(
                     "Année moyenne",
                     "N/A"
                 )
-
         with c4:
-
             if "kilometrage_numeric" in gaaraas:
-
                 value = gaaraas[
                     "kilometrage_numeric"
                 ].mean()
-
                 st.metric(
                     "Kilométrage moyen",
                     f"{value:,.0f} km"
                     if pd.notna(value)
                     else "N/A"
                 )
-
             else:
-
                 st.metric(
                     "Kilométrage moyen",
                     "N/A"
                 )
-
         left, right = st.columns(2)
-
         with left:
-
             if "marque_modele" in gaaraas:
-
                 st.subheader(
                     "Top marques / modèles"
                 )
-
                 st.bar_chart(
                     gaaraas[
                         "marque_modele"
@@ -942,15 +802,11 @@ elif menu == "Dashboard":
                     .value_counts()
                     .head(10)
                 )
-
         with right:
-
             if "annee_numeric" in gaaraas:
-
                 st.subheader(
                     "Répartition par année"
                 )
-
                 st.bar_chart(
                     gaaraas[
                         "annee_numeric"
@@ -958,11 +814,9 @@ elif menu == "Dashboard":
                     .value_counts()
                     .sort_index()
                 )
-
         with st.expander(
             "Voir les données Gaaraas nettoyées"
         ):
-
             st.dataframe(
                 gaaraas,
                 use_container_width=True
@@ -971,17 +825,13 @@ elif menu == "Dashboard":
 # FORMULAIRES D'EVALUATION
 
 elif menu == "Formulaires d'évaluation":
-
     st.title("Formulaires d'évaluation")
-
     st.subheader("Google Forms")
-
     st.link_button(
         "Ouvrir le formulaire Google Forms",
         GOOGLE_FORM_URL,
         use_container_width=True
     )
-
     st.divider()
 
     st.subheader("KoboToolbox")
@@ -995,63 +845,47 @@ elif menu == "Formulaires d'évaluation":
 # BASE SQL
 
 elif menu == "Base SQL":
-
     st.title("Base de données SQL")
-
     st.write(
         """
         Les données collectées sont stockées dans une base SQLite.
-
         Les tables utilisées sont :
-
         - `selenium_books`
         - `selenium_gaaraas`
         - `webscraper_books`
         - `webscraper_gaaraas`
         """
     )
-
     tables = get_sql_tables()
-
     if not tables:
-
         st.info(
             "La base SQL est actuellement vide. "
             "Lancez une collecte ou consultez les données "
             "Web Scraper pour l'alimenter."
         )
-
     else:
-
         st.success(
             f"{len(tables)} table(s) disponible(s)."
         )
-
         for table in tables:
-
             with st.expander(
                 f"{table}"
             ):
-
                 try:
-
                     with get_connection() as conn:
 
                         df = pd.read_sql_query(
                             f'SELECT * FROM "{table}"',
                             conn
                         )
-
                     st.write(
                         f"{len(df)} lignes × "
                         f"{len(df.columns)} colonnes"
                     )
-
                     st.dataframe(
                         df.head(100),
                         use_container_width=True
                     )
-
                     st.download_button(
                         "Télécharger la table",
                         df.to_csv(
@@ -1061,19 +895,16 @@ elif menu == "Base SQL":
                         "text/csv",
                         key=f"sql_{table}"
                     )
-
                 except Exception as exc:
 
                     st.error(
                         f"Erreur SQL : {exc}"
                     )
-
     st.divider()
 
     st.subheader(
         "Structure des sources"
     )
-
     schema = pd.DataFrame({
         "Source": [
             "Selenium Books to Scrape",
@@ -1088,7 +919,6 @@ elif menu == "Base SQL":
             "webscraper_gaaraas",
         ],
     })
-
     st.dataframe(
         schema,
         use_container_width=True,
