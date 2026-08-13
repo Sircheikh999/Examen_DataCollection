@@ -1,7 +1,6 @@
 import re
 import sqlite3
 from pathlib import Path
-
 import pandas as pd
 import streamlit as st
 
@@ -16,7 +15,6 @@ BASE_DIR = Path(__file__).resolve().parent
 COLAB_DIR = BASE_DIR / "Colab"
 WEB_SCRAPER_DIR = BASE_DIR / "Web_Scraper"
 FORM_DIR = BASE_DIR / "Formulaire"
-
 DB_PATH = BASE_DIR / "data_collection.db"
 
 # Fichiers utilisés
@@ -35,7 +33,6 @@ def get_connection():
 def save_to_sql(df, table_name):
     if df is None or df.empty:
         return
-
     with get_connection() as conn:
         df.to_sql(
             table_name,
@@ -50,7 +47,6 @@ def get_sql_tables():
             "SELECT name FROM sqlite_master "
             "WHERE type='table' ORDER BY name"
         ).fetchall()
-
     return [row[0] for row in rows]
 
 # LECTURE CSV
@@ -58,7 +54,6 @@ def get_sql_tables():
 def read_csv_file(path):
     if not path.exists():
         return None
-
     for encoding in ("utf-8-sig", "utf-8", "latin1"):
         try:
             return pd.read_csv(
@@ -68,7 +63,6 @@ def read_csv_file(path):
             )
         except Exception:
             continue
-
     return None
 
 # SELENIUM
@@ -76,9 +70,7 @@ def read_csv_file(path):
 def create_driver():
     from selenium import webdriver
     from selenium.webdriver.chrome.options import Options
-
     options = Options()
-
     for binary in (
         "/usr/bin/chromium",
         "/usr/bin/chromium-browser",
@@ -88,31 +80,25 @@ def create_driver():
         if Path(binary).exists():
             options.binary_location = binary
             break
-
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
     options.add_argument("--disable-notifications")
-
     return webdriver.Chrome(options=options)
 
 # SELENIUM - BOOKS TO SCRAPE
 
 def scrape_books(start_page=1, end_page=50):
-
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
-
     driver = create_driver()
     records = []
-
     try:
         progress = st.progress(0)
         total_pages = end_page - start_page + 1
-
         for position, page in enumerate(
             range(start_page, end_page + 1),
             start=1
@@ -120,9 +106,7 @@ def scrape_books(start_page=1, end_page=50):
             url = (
                 f"https://books.toscrape.com/catalogue/page-{page}.html"
             )
-
             driver.get(url)
-
             try:
                 WebDriverWait(driver, 10).until(
                     EC.presence_of_all_elements_located(
@@ -131,31 +115,24 @@ def scrape_books(start_page=1, end_page=50):
                 )
             except Exception:
                 pass
-
             products = driver.find_elements(
                 By.CSS_SELECTOR,
                 "article.product_pod"
             )
-
             links = []
-
             for product in products:
                 try:
                     href = product.find_element(
                         By.CSS_SELECTOR,
                         "h3 a"
                     ).get_attribute("href")
-
                     if href:
                         links.append(href)
                 except Exception:
                     continue
-
             for product_url in links:
-
                 try:
                     driver.get(product_url)
-
                     def text(css, default=""):
                         try:
                             return driver.find_element(
@@ -164,7 +141,6 @@ def scrape_books(start_page=1, end_page=50):
                             ).text.strip()
                         except Exception:
                             return default
-
                     try:
                         rating_class = driver.find_element(
                             By.CSS_SELECTOR,
@@ -172,7 +148,6 @@ def scrape_books(start_page=1, end_page=50):
                         ).get_attribute("class")
                     except Exception:
                         rating_class = ""
-
                     records.append({
                         "page": page,
                         "number_of_products": len(products),
@@ -200,34 +175,25 @@ def scrape_books(start_page=1, end_page=50):
                         ),
                         "url": product_url,
                     })
-
                 except Exception:
                     continue
-
             progress.progress(position / total_pages)
-
         progress.empty()
-
     finally:
         driver.quit()
-
     return pd.DataFrame(records)
 
 # SELENIUM - GAARAAS
 
 def scrape_gaaraas(start_page=1, end_page=13):
-
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
-
     driver = create_driver()
     records = []
-
     try:
         progress = st.progress(0)
         total_pages = end_page - start_page + 1
-
         for position, page in enumerate(
             range(start_page, end_page + 1),
             start=1
@@ -235,9 +201,7 @@ def scrape_gaaraas(start_page=1, end_page=13):
             url = (
                 "https://www.gaaraas.com/fr/users/dakar-auto?page={page}"
             )
-
             driver.get(url)
-
             try:
                 WebDriverWait(driver, 10).until(
                     EC.presence_of_all_elements_located(
@@ -246,28 +210,21 @@ def scrape_gaaraas(start_page=1, end_page=13):
                 )
             except Exception:
                 pass
-
             cards = driver.find_elements(
                 By.CSS_SELECTOR,
                 "a.common-ad-card"
             )
-
             links = []
-
             for card in cards:
                 try:
                     href = card.get_attribute("href")
-
                     if href and href not in links:
                         links.append(href)
                 except Exception:
                     continue
-
             for ad_url in links:
-
                 try:
                     driver.get(ad_url)
-
                     def text(css, default=""):
                         try:
                             return driver.find_element(
@@ -276,7 +233,6 @@ def scrape_gaaraas(start_page=1, end_page=13):
                             ).text.strip()
                         except Exception:
                             return default
-
                     records.append({
                         "page": page,
                         "number_of_ads": len(cards),
@@ -300,30 +256,22 @@ def scrape_gaaraas(start_page=1, end_page=13):
                         ),
                         "url": ad_url,
                     })
-
                 except Exception:
                     continue
-
             progress.progress(position / total_pages)
-
         progress.empty()
-
     finally:
         driver.quit()
-
     return pd.DataFrame(records)
 
 # NETTOYAGE
 
 def clean_books(df):
-
     df = df.copy()
-
     for col in df.select_dtypes(
         include="object"
     ).columns:
         df[col] = df[col].astype(str).str.strip()
-
     if "price" in df.columns:
         df["price_numeric"] = pd.to_numeric(
             df["price"]
@@ -333,9 +281,7 @@ def clean_books(df):
             .str.strip(),
             errors="coerce"
         )
-
     if "star_rating" in df.columns:
-
         rating_map = {
             "One": 1,
             "Two": 2,
@@ -343,7 +289,6 @@ def clean_books(df):
             "Four": 4,
             "Five": 5,
         }
-
         df["rating"] = (
             df["star_rating"]
             .astype(str)
@@ -353,31 +298,24 @@ def clean_books(df):
             )
             .map(rating_map)
         )
-
     if "reviews" in df.columns:
         df["reviews_numeric"] = pd.to_numeric(
             df["reviews"],
             errors="coerce"
         )
-
     return df.drop_duplicates().reset_index(drop=True)
 
-
 def clean_gaaraas(df):
-
     df = df.copy()
-
     for col in df.select_dtypes(
         include="object"
     ).columns:
         df[col] = df[col].astype(str).str.strip()
-
     if "annee" in df.columns:
         df["annee_numeric"] = pd.to_numeric(
             df["annee"],
             errors="coerce"
         )
-
     if "prix" in df.columns:
         df["prix_numeric"] = pd.to_numeric(
             df["prix"]
@@ -391,7 +329,6 @@ def clean_gaaraas(df):
             .str.strip(),
             errors="coerce"
         )
-
     if "kilometrage" in df.columns:
         df["kilometrage_numeric"] = pd.to_numeric(
             df["kilometrage"]
@@ -404,21 +341,18 @@ def clean_gaaraas(df):
             .str.strip(),
             errors="coerce"
         )
-
     return df.drop_duplicates().reset_index(drop=True)
 
 # SESSION STATE
 
 if "books_selenium" not in st.session_state:
     st.session_state.books_selenium = None
-
 if "gaaraas_selenium" not in st.session_state:
     st.session_state.gaaraas_selenium = None
 
 # SIDEBAR
 
 st.sidebar.title("Data Collection")
-
 menu = st.sidebar.radio(
     "Navigation",
     [
@@ -430,29 +364,23 @@ menu = st.sidebar.radio(
         "Base SQL",
     ]
 )
-
 st.sidebar.markdown("---")
 st.sidebar.caption("Projet Examen Data Collection")
 
 # ACCUEIL
 
 if menu == "Accueil":
-
     st.title("Scraping App")
-
     st.markdown(
         """
         ### Objectif
-
         Cette application regroupe les différentes étapes du projet :
-
         - collecte avec **Selenium** sur plusieurs pages ;
         - téléchargement des données brutes **Web Scraper** ;
         - nettoyage des données Selenium ;
         - dashboard des données nettoyées ;
         - accès aux formulaires d'évaluation ;
         - stockage SQL.
-
         """
     )
 
