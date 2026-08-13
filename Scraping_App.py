@@ -5,14 +5,10 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-
-# ============================================================
 # CONFIGURATION
-# ============================================================
 
 st.set_page_config(
     page_title="Data Collection - Examen",
-    page_icon="📊",
     layout="wide",
 )
 
