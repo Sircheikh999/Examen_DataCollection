@@ -721,7 +721,7 @@ elif menu == "Données Web Scraper":
     for path in found_files:
 
         st.subheader(
-            f"📄 {path.name}"
+            f"{path.name}"
         )
 
         df = read_csv_file(path)
@@ -1049,17 +1049,17 @@ elif menu == "Formulaires d'évaluation":
     st.subheader("Google Forms")
 
     st.link_button(
-        "📝 Ouvrir le formulaire Google Forms",
+        "Ouvrir le formulaire Google Forms",
         GOOGLE_FORM_URL,
         use_container_width=True
     )
 
     st.divider()
 
-    st.subheader("📋 KoboToolbox")
+    st.subheader("KoboToolbox")
 
     st.link_button(
-        "📝 Ouvrir le formulaire KoboToolbox",
+        "Ouvrir le formulaire KoboToolbox",
         KOBO_FORM_URL,
         use_container_width=True
     )
