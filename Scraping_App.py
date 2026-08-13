@@ -27,14 +27,10 @@ GAARAAS_CSV = WEB_SCRAPER_DIR / "Source_2_Gaaraas).csv"
 GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSc7F8m3eBJkCqpOUa4pTQX0zyIov_4LWXRYOV3XKbmi0vJJoQ/viewform?usp=publish-editor"
 KOBO_FORM_URL = "https://ee.kobotoolbox.org/i/1zbGqqaq"
 
-
-# ============================================================
 # BASE SQL
-# ============================================================
 
 def get_connection():
     return sqlite3.connect(DB_PATH)
-
 
 def save_to_sql(df, table_name):
     if df is None or df.empty:
@@ -48,7 +44,6 @@ def save_to_sql(df, table_name):
             index=False
         )
 
-
 def get_sql_tables():
     with get_connection() as conn:
         rows = conn.execute(
@@ -58,10 +53,7 @@ def get_sql_tables():
 
     return [row[0] for row in rows]
 
-
-# ============================================================
 # LECTURE CSV
-# ============================================================
 
 def read_csv_file(path):
     if not path.exists():
@@ -79,10 +71,7 @@ def read_csv_file(path):
 
     return None
 
-
-# ============================================================
 # SELENIUM
-# ============================================================
 
 def create_driver():
     from selenium import webdriver
@@ -109,10 +98,7 @@ def create_driver():
 
     return webdriver.Chrome(options=options)
 
-
-# ============================================================
 # SELENIUM - BOOKS TO SCRAPE
-# ============================================================
 
 def scrape_books(start_page=1, end_page=50):
 
@@ -132,8 +118,7 @@ def scrape_books(start_page=1, end_page=50):
             start=1
         ):
             url = (
-                f"https://books.toscrape.com/"
-                f"catalogue/page-{page}.html"
+                f"https://books.toscrape.com/catalogue/page-{page}.html"
             )
 
             driver.get(url)
@@ -228,10 +213,7 @@ def scrape_books(start_page=1, end_page=50):
 
     return pd.DataFrame(records)
 
-
-# ============================================================
 # SELENIUM - GAARAAS
-# ============================================================
 
 def scrape_gaaraas(start_page=1, end_page=13):
 
@@ -251,8 +233,7 @@ def scrape_gaaraas(start_page=1, end_page=13):
             start=1
         ):
             url = (
-                "https://www.gaaraas.com/fr/users/dakar-auto"
-                f"?page={page}"
+                "https://www.gaaraas.com/fr/users/dakar-auto?page={page}"
             )
 
             driver.get(url)
@@ -332,10 +313,7 @@ def scrape_gaaraas(start_page=1, end_page=13):
 
     return pd.DataFrame(records)
 
-
-# ============================================================
 # NETTOYAGE
-# ============================================================
 
 def clean_books(df):
 
@@ -429,10 +407,7 @@ def clean_gaaraas(df):
 
     return df.drop_duplicates().reset_index(drop=True)
 
-
-# ============================================================
 # SESSION STATE
-# ============================================================
 
 if "books_selenium" not in st.session_state:
     st.session_state.books_selenium = None
@@ -440,12 +415,9 @@ if "books_selenium" not in st.session_state:
 if "gaaraas_selenium" not in st.session_state:
     st.session_state.gaaraas_selenium = None
 
-
-# ============================================================
 # SIDEBAR
-# ============================================================
 
-st.sidebar.title("📊 Data Collection")
+st.sidebar.title("Data Collection")
 
 menu = st.sidebar.radio(
     "Navigation",
@@ -462,14 +434,11 @@ menu = st.sidebar.radio(
 st.sidebar.markdown("---")
 st.sidebar.caption("Projet Examen Data Collection")
 
-
-# ============================================================
 # ACCUEIL
-# ============================================================
 
 if menu == "Accueil":
 
-    st.title("📊 Application Data Collection")
+    st.title("Scraping App")
 
     st.markdown(
         """
@@ -477,14 +446,13 @@ if menu == "Accueil":
 
         Cette application regroupe les différentes étapes du projet :
 
-        - 🕷️ collecte avec **Selenium** sur plusieurs pages ;
-        - 📥 téléchargement des données brutes **Web Scraper** ;
-        - 🧹 nettoyage des données Selenium ;
-        - 📊 dashboard des données nettoyées ;
-        - 📝 accès aux formulaires d'évaluation ;
-        - 🗄️ stockage SQL.
+        - collecte avec **Selenium** sur plusieurs pages ;
+        - téléchargement des données brutes **Web Scraper** ;
+        - nettoyage des données Selenium ;
+        - dashboard des données nettoyées ;
+        - accès aux formulaires d'évaluation ;
+        - stockage SQL.
 
-        **Les fichiers JSON sont volontairement ignorés.**
         """
     )
 
@@ -513,29 +481,24 @@ if menu == "Accueil":
             2
         )
 
-
-# ============================================================
 # SCRAPING SELENIUM
-# ============================================================
 
 elif menu == "Scraping Selenium":
 
-    st.title("🕷️ Scraping Selenium")
+    st.title("Scraping Selenium")
 
     tab_books, tab_gaaraas = st.tabs(
         [
-            "📚 Books to Scrape",
-            "🚗 Gaaraas"
+            "Books to Scrape",
+            "Gaaraas"
         ]
     )
-
-    # --------------------------------------------------------
+   
     # BOOKS
-    # --------------------------------------------------------
 
     with tab_books:
 
-        st.subheader("📚 Books to Scrape")
+        st.subheader("Books to Scrape")
 
         col1, col2 = st.columns(2)
 
@@ -560,7 +523,7 @@ elif menu == "Scraping Selenium":
             )
 
         if st.button(
-            "🚀 Lancer le scraping Books to Scrape",
+            "Lancer le scraping Books to Scrape",
             type="primary",
             use_container_width=True
         ):
@@ -622,20 +585,19 @@ elif menu == "Scraping Selenium":
             )
 
             st.download_button(
-                "⬇️ Télécharger les données nettoyées",
+                "Télécharger les données nettoyées",
                 books.to_csv(index=False).encode("utf-8"),
                 "books_selenium_clean.csv",
                 "text/csv",
                 use_container_width=True
             )
 
-    # --------------------------------------------------------
+    
     # GAARAAS
-    # --------------------------------------------------------
-
+  
     with tab_gaaraas:
 
-        st.subheader("🚗 Gaaraas")
+        st.subheader("Gaaraas")
 
         col1, col2 = st.columns(2)
 
@@ -660,7 +622,7 @@ elif menu == "Scraping Selenium":
             )
 
         if st.button(
-            "🚀 Lancer le scraping Gaaraas",
+            "Lancer le scraping Gaaraas",
             type="primary",
             use_container_width=True
         ):
@@ -722,21 +684,18 @@ elif menu == "Scraping Selenium":
             )
 
             st.download_button(
-                "⬇️ Télécharger les données nettoyées",
+                "Télécharger les données nettoyées",
                 gaaraas.to_csv(index=False).encode("utf-8"),
                 "gaaraas_selenium_clean.csv",
                 "text/csv",
                 use_container_width=True
             )
 
-
-# ============================================================
 # DONNEES WEB SCRAPER
-# ============================================================
 
 elif menu == "Données Web Scraper":
 
-    st.title("📥 Données brutes Web Scraper")
+    st.title("Données brutes Web Scraper")
 
     st.info(
         "Seuls les deux fichiers CSV finaux sont utilisés. "
@@ -796,7 +755,7 @@ elif menu == "Données Web Scraper":
         )
 
         st.download_button(
-            f"⬇️ Télécharger {path.name}",
+            f"Télécharger {path.name}",
             df.to_csv(index=False).encode("utf-8"),
             path.name,
             "text/csv",
@@ -818,15 +777,12 @@ elif menu == "Données Web Scraper":
                 "webscraper_gaaraas"
             )
 
-
-# ============================================================
 # DASHBOARD
-# ============================================================
 
 elif menu == "Dashboard":
 
     st.title(
-        "📊 Dashboard des données Selenium nettoyées"
+        "Dashboard des données Selenium nettoyées"
     )
 
     books = st.session_state.books_selenium
@@ -839,13 +795,11 @@ elif menu == "Dashboard":
             "Lancez le scraping dans la section Selenium."
         )
 
-    # --------------------------------------------------------
     # BOOKS
-    # --------------------------------------------------------
 
     if books is not None:
 
-        st.header("📚 Books to Scrape")
+        st.header("Books to Scrape")
 
         c1, c2, c3, c4 = st.columns(4)
 
@@ -960,15 +914,13 @@ elif menu == "Dashboard":
                 use_container_width=True
             )
 
-    # --------------------------------------------------------
     # GAARAAS
-    # --------------------------------------------------------
 
     if gaaraas is not None:
 
         st.divider()
 
-        st.header("🚗 Gaaraas")
+        st.header("Gaaraas")
 
         c1, c2, c3, c4 = st.columns(4)
 
@@ -1088,21 +1040,13 @@ elif menu == "Dashboard":
                 use_container_width=True
             )
 
-
-# ============================================================
 # FORMULAIRES D'EVALUATION
-# ============================================================
 
 elif menu == "Formulaires d'évaluation":
 
-    st.title("📝 Formulaires d'évaluation")
+    st.title("Formulaires d'évaluation")
 
-    st.write(
-        "Les deux formulaires sont accessibles directement "
-        "depuis l'application."
-    )
-
-    st.subheader("📋 Google Forms")
+    st.subheader("Google Forms")
 
     st.link_button(
         "📝 Ouvrir le formulaire Google Forms",
@@ -1120,14 +1064,11 @@ elif menu == "Formulaires d'évaluation":
         use_container_width=True
     )
 
-
-# ============================================================
 # BASE SQL
-# ============================================================
 
 elif menu == "Base SQL":
 
-    st.title("🗄️ Base de données SQL")
+    st.title("Base de données SQL")
 
     st.write(
         """
@@ -1161,7 +1102,7 @@ elif menu == "Base SQL":
         for table in tables:
 
             with st.expander(
-                f"📁 {table}"
+                f"{table}"
             ):
 
                 try:
@@ -1184,7 +1125,7 @@ elif menu == "Base SQL":
                     )
 
                     st.download_button(
-                        "⬇️ Télécharger la table",
+                        "Télécharger la table",
                         df.to_csv(
                             index=False
                         ).encode("utf-8"),
