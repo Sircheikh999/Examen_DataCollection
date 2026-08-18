@@ -199,7 +199,7 @@ def scrape_gaaraas(start_page=1, end_page=13):
             start=1
         ):
             url = (
-                "https://www.gaaraas.com/fr/users/dakar-auto?page={page}"
+                f"https://www.gaaraas.com/fr/users/dakar-auto?page={page}"
             )
             driver.get(url)
             try:
